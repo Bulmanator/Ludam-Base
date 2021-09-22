@@ -6,4 +6,6 @@
 #include "base/memory.h"
 #include "base/platform.h"
 
+#include "base/maths.h"
+
 #endif  // BASE_H_

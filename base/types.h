@@ -65,6 +65,100 @@ struct str8 {
     u8 *data;
 };
 
+// Maths types
+//
+union v2u {
+    struct {
+        u32 x, y;
+    };
+
+    struct {
+        u32 w, h;
+    };
+
+    u32 e[2];
+};
+
+union v2s {
+    struct {
+        s32 x, y;
+    };
+
+    struct {
+        s32 w, h;
+    };
+
+    s32 e[2];
+};
+
+union v2 {
+    struct {
+        f32 x, y;
+    };
+
+    struct {
+        f32 u, v;
+    };
+
+    struct {
+        f32 w, h;
+    };
+
+    f32 e[2];
+};
+
+union v3 {
+    struct {
+        f32 x, y, z;
+    };
+
+    struct {
+        f32 r, g, b;
+    };
+
+    struct {
+        f32 w, h, d;
+    };
+
+    struct {
+        v2  xy;
+        f32 _z;
+    };
+
+    f32 e[3];
+};
+
+union v4 {
+    struct {
+        f32 x, y, z;
+        f32 w;
+    };
+
+    struct {
+        f32 r, g, b;
+        f32 a;
+    };
+
+    struct {
+        v3  xyz;
+        f32 _w;
+    };
+
+    f32 e[4];
+};
+
+union m4x4 {
+    struct {
+        f32 m[4][4];
+    };
+
+    struct {
+        v4 r[4];
+    };
+
+    f32 e[16];
+};
+
 // Utility macros
 //
 #define function static
