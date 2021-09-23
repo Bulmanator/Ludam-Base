@@ -174,4 +174,7 @@ union m4x4 {
 #define Min(a, b) ((a) < (b) ? (a) : (b))
 #define Max(a, b) ((a) > (b) ? (a) : (b))
 
+#define Clamp(x, min, max) (Min(Max(x, min), max))
+#define Clamp01(x) Clamp(x, 0, 1)
+
 #endif  // BASE_TYPES_H_
