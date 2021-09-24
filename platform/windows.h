@@ -13,6 +13,8 @@
 struct Windows_Context {
     Platform_Context platform;
 
+    b32 running;
+
     Memory_Allocator alloc;
     Memory_Arena arena;
 
@@ -20,10 +22,21 @@ struct Windows_Context {
     Thread_Context *thread_contexts;
 
     DWORD tls_handle;
+
+    HWND window;
 };
 
 global Windows_Context windows_context;
 
-function b32 WindowsInitialise();
+struct Windows_Parameters {
+    u32 init_flags;
+
+    int show_cmd;
+
+    str8 window_title;
+    v2u  window_dim;
+};
+
+function b32 WindowsInitialise(Windows_Parameters *params);
 
 #endif  // PLATFORM_WINDOWS_H_

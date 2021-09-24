@@ -1,6 +1,11 @@
 #if !defined(BASE_PLATFORM_H_)
 #define BASE_PLATFORM_H_
 
+enum Platform_Init_Flags {
+    PlatformInit_OpenWindow  = (1 << 0),
+    PlatformInit_EnableAudio = (1 << 1),
+};
+
 #define PLATFORM_GET_MEMORY_ALLOCATOR(name) Memory_Allocator *name(void)
 typedef PLATFORM_GET_MEMORY_ALLOCATOR(Platform_Get_Memory_Allocator);
 

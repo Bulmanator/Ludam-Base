@@ -91,6 +91,18 @@ function str8 Substring(str8 base, uptr start, uptr end) {
     return result;
 }
 
+function const char *CopyZ(Memory_Arena *arena, str8 str) {
+    const char *result = 0;
+
+    u8 *buffer = AllocArray(arena, u8, str.count + 1, Allocation_NoClear);
+
+    CopySize(buffer, str.data, str.count);
+    buffer[str.count] = 0;
+
+    result = cast(const char *) buffer;
+    return result;
+}
+
 function b32 StringsEqual(str8 a, str8 b, u32 flags) {
     b32 result = (a.count == b.count);
     if (result) {

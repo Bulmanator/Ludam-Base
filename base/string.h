@@ -17,6 +17,10 @@ function str8 Prefix(str8 base, uptr count);
 
 function str8 Substring(str8 base, uptr start, uptr end);
 
+// Make a copy of the string that is null-terminated
+//
+function const char *CopyZ(Memory_Arena *arena, str8 str);
+
 enum String_Compare_Flags {
     StringCompare_NoCase = (1 << 0),
 };
