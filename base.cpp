@@ -1,4 +1,7 @@
 #include "base/memory.cpp"
+#include "base/scratch.cpp"
+
+#include "base/string.cpp"
 
 #include "base/maths.cpp"
 

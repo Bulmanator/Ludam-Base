@@ -14,6 +14,12 @@ struct Windows_Context {
     Platform_Context platform;
 
     Memory_Allocator alloc;
+    Memory_Arena arena;
+
+    u32 thread_count; // @Note: Count includes the main thread
+    Thread_Context *thread_contexts;
+
+    DWORD tls_handle;
 };
 
 global Windows_Context windows_context;

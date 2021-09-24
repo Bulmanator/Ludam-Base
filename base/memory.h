@@ -40,6 +40,13 @@ enum Allocation_Flags {
     Allocation_NoClear = 0x1,
 };
 
+struct Scratch_Memory {
+    Memory_Arena *arena;
+    uptr used;
+
+    ~Scratch_Memory();
+};
+
 // Initialises the arena for use and reserves the given size from the allocator
 //
 function void Initialise(Memory_Arena *arena, Memory_Allocator *alloc, uptr size);
@@ -61,6 +68,20 @@ function void Reset(Memory_Arena *arena, b32 release = false);
 #define AllocSize(arena, size, ...) __AllocSize(arena, size, ##__VA_ARGS__)
 #define AllocType(arena, T, ...) (T *) __AllocSize(arena, sizeof(T), ##__VA_ARGS__)
 #define AllocArray(arena, T, count, ...) (T *) __AllocSize(arena, (count) * sizeof(T), ##__VA_ARGS__)
+
+// Scratch memory
+//
+function Scratch_Memory CreateScratch(Memory_Arena *arena);
+
+// These two pull from a pool of available scratch memory in thread local storage.
+//
+function Scratch_Memory GetScratch(Memory_Arena **conflicting_arenas, u32 count);
+function Scratch_Memory GetScratch();
+
+// Manually release scratch, this will happen automatically when the scope the scratch memory was created in
+// exits
+//
+function void ReleaseScratch(Scratch_Memory *scratch);
 
 // Utility functions
 //

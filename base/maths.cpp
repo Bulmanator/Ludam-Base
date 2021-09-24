@@ -25,7 +25,7 @@ function f32 Lerp(f32 a, f32 b, f32 t) {
 }
 
 function f64 Lerp(f64 a, f64 b, f64 t) {
-    f64 result = ((1.0f - t) * a) + (t * b);
+    f64 result = ((1.0 - t) * a) + (t * b);
     return result;
 }
 
