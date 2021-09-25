@@ -31,6 +31,8 @@ struct Windows_Context {
 
     HWND window;
     v2u window_dim;
+
+    HMODULE renderer_dll;
 };
 
 global Windows_Context windows_context;
@@ -59,5 +61,13 @@ function void WindowsHandleInput(Input *input);
 //
 function void WindowsSetFullscreen(b32 fullscreen);
 function void WindowsToggleFullscreen();
+
+// Load the default renderer using the parameters given.
+//
+// @Note: Only OpenGL is supported at the moment, but in the future it would be nice to support other graphics
+// APIs, thus there will probably be another call to this allowing the user to specify which renderer is
+// wanted.
+//
+function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params);
 
 #endif  // PLATFORM_WINDOWS_H_

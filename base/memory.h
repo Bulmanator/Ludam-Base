@@ -69,6 +69,11 @@ function void Reset(Memory_Arena *arena, b32 release = false);
 #define AllocType(arena, T, ...) (T *) __AllocSize(arena, sizeof(T), ##__VA_ARGS__)
 #define AllocArray(arena, T, count, ...) (T *) __AllocSize(arena, (count) * sizeof(T), ##__VA_ARGS__)
 
+// This will allocate a structure containing an arena within its own arena and return the pointer to that
+// allocated structure to you. size is the max size of the arena
+//
+#define AllocInline(alloc, size, T, arena_name) (T *) __AllocInline(alloc, size, sizeof(T), OffsetTo(T, arena_name))
+
 // Scratch memory
 //
 function Scratch_Memory CreateScratch(Memory_Arena *arena);

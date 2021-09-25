@@ -404,3 +404,31 @@ function void WindowsToggleFullscreen() {
     DWORD style = GetWindowLong(windows_context.window, GWL_STYLE);
     WindowsSetFullscreen(style & WS_OVERLAPPEDWINDOW);
 }
+
+function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params) {
+    Renderer_Context *result = 0;
+
+    // @Incomplete: This will not work if the executing directory is not the same as the exe directory
+    //
+    HMODULE renderer_dll = LoadLibraryA("renderer_wgl.dll");
+    if (!renderer_dll) {
+        return result;
+    }
+
+    windows_context.renderer_dll = renderer_dll;
+
+    Renderer_Initialise *Initialise = cast(Renderer_Initialise *) GetProcAddress(renderer_dll, "WindowsOpenGLInitialise");
+    if (!Initialise) {
+        return result;
+    }
+
+    // Set the platform data required for initialisation
+    //
+    *cast(HINSTANCE *) &params->platform_data[0] = GetModuleHandle(0);
+    *cast(HWND *)      &params->platform_data[1] = windows_context.window;
+
+    params->platform_alloc = Platform->GetMemoryAllocator();
+
+    result = Initialise(params);
+    return result;
+}

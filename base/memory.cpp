@@ -76,6 +76,18 @@ function void *__AllocSize(Memory_Arena *arena, uptr size, u32 flags = 0, uptr a
     return result;
 }
 
+function void *__AllocInline(Memory_Allocator *alloc, uptr size, uptr type_size, uptr arena_offset) {
+    void *result = 0;
+
+    Memory_Arena arena;
+    Initialise(&arena, alloc, size);
+
+    result = AllocSize(&arena, type_size);
+    *cast(Memory_Arena *) (cast(u8 *) result + arena_offset) = arena;
+
+    return result;
+}
+
 // Utility functions
 //
 function void ZeroSize(void *base, uptr size) {

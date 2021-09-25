@@ -11,4 +11,6 @@
 
 #include "base/input.h"
 
+#include "base/renderer.h"
+
 #endif  // BASE_H_
