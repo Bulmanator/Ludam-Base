@@ -8,3 +8,5 @@
 #if ARCH_AMD64
 #    include "base/intrin.cpp"
 #endif
+
+#include "base/input.cpp"

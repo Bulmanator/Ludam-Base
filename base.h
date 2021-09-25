@@ -7,7 +7,8 @@
 #include "base/platform.h"
 
 #include "base/string.h"
-
 #include "base/maths.h"
+
+#include "base/input.h"
 
 #endif  // BASE_H_

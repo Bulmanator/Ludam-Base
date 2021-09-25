@@ -23,7 +23,14 @@ struct Windows_Context {
 
     DWORD tls_handle;
 
+    f64 performance_freq;
+    u64 last_time;
+
+    b32 fullscreen;
+    WINDOWPLACEMENT placement;
+
     HWND window;
+    v2u window_dim;
 };
 
 global Windows_Context windows_context;
@@ -37,6 +44,20 @@ struct Windows_Parameters {
     v2u  window_dim;
 };
 
+// This must be called before uinsg any platform layer code
+//
 function b32 WindowsInitialise(Windows_Parameters *params);
+
+// Will process keyboard and mouse input, get frame delta time and handle quit events
+//
+function void WindowsHandleInput(Input *input);
+
+// Set the window as fullscreen or toggle to switch between windowed and fullscreen
+//
+// @Todo: I think the current implementation is more of a "borderless windowed" fullscreen than exclusive
+// fullscreen. Work out how to do exclusive fullscreen
+//
+function void WindowsSetFullscreen(b32 fullscreen);
+function void WindowsToggleFullscreen();
 
 #endif  // PLATFORM_WINDOWS_H_
