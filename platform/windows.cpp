@@ -178,6 +178,12 @@ function LRESULT WindowsMainWindowMessageHandler(HWND window, UINT message, WPAR
         }
         break;
 
+        case WM_DPICHANGED: {
+            LPRECT rect = cast(LPRECT) lparam;
+            SetWindowPos(window, 0, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOOWNERZORDER | SWP_NOZORDER);
+        }
+        break;
+
         default: {
             result = DefWindowProcA(window, message, wparam, lparam);
         }
@@ -266,6 +272,11 @@ function void WindowsInitialiseThreadContext(Thread_Context *tctx) {
 
 function b32 WindowsInitialise(Windows_Parameters *params) {
     b32 result = false;
+
+    // Enable HighDPI support
+    //
+    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
     b32 open_window  = (params->init_flags & PlatformInit_OpenWindow);
 
@@ -386,7 +397,7 @@ function void WindowsSetFullscreen(b32 fullscreen) {
 
                 v2s dim;
                 dim.w = (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left);
-                dim.h = (monitor_info.rcMonitor.top - monitor_info.rcMonitor.bottom);
+                dim.h = (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top);
 
                 SetWindowLongA(windows_context.window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
                 SetWindowPos(windows_context.window, HWND_TOP, pos.x, pos.y, dim.w, dim.h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
@@ -430,5 +441,17 @@ function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params) {
     params->platform_alloc = Platform->GetMemoryAllocator();
 
     result = Initialise(params);
+    return result;
+}
+
+function v2u WindowsGetWindowDim() {
+    v2u result = V2U(0, 0);
+
+    RECT client_rect;
+    if (GetClientRect(windows_context.window, &client_rect)) {
+        result.w = (client_rect.right - client_rect.left);
+        result.h = (client_rect.bottom - client_rect.top);
+    }
+
     return result;
 }

@@ -13,6 +13,7 @@
 #include <base/string.cpp>
 
 #include "opengl.h"
+#include "opengl.cpp"
 
 global HGLRC global_gl_context;
 global HDC   global_dc;
@@ -51,7 +52,7 @@ typedef BOOL type_wglChoosePixelFormatARB(HDC, const int *, const FLOAT *, UINT,
 
 typedef HGLRC type_wglCreateContextAttribsARB(HDC, HGLRC, const int *);
 
-// Provided by WGL_ARB_framebuffer_sRGB
+// Provided by WGL_ARB_framebuffer_sRGB or WGL_EXT_framebuffer_sRGB
 //
 #define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB 0x20A9
 
@@ -63,6 +64,11 @@ typedef const char *type_wglGetExtensionsStringARB(HDC);
 //
 typedef BOOL type_wglSwapIntervalEXT(int);
 
+// Provided by WGL_ARB_multisample
+//
+#define WGL_SAMPLE_BUFFERS_ARB 0x2041
+#define WGL_SAMPLES_ARB        0x2042
+
 // WGL function pointers
 //
 global type_wglChoosePixelFormatARB    *wglChoosePixelFormatARB;
@@ -70,13 +76,14 @@ global type_wglCreateContextAttribsARB *wglCreateContextAttribsARB;
 global type_wglGetExtensionsStringARB  *wglGetExtensionsStringARB;
 global type_wglSwapIntervalEXT         *wglSwapIntervalEXT;
 
-function b32 WGLSetPixelFormat(HDC dc, b32 enable_srgb) {
+function b32 WGLSetPixelFormat(HDC dc, b32 enable_srgb, b32 enable_multisample) {
     b32 result = false;
 
     int format_index;
 
     if (wglChoosePixelFormatARB) {
-        int format_attribs[] = {
+        int attrib_count = 18;
+        int format_attribs[32] = {
             WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
             WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
             WGL_DOUBLE_BUFFER_ARB,  GL_TRUE,
@@ -85,21 +92,27 @@ function b32 WGLSetPixelFormat(HDC dc, b32 enable_srgb) {
             WGL_DEPTH_BITS_ARB,     24,
             WGL_STENCIL_BITS_ARB,   8,
             WGL_PIXEL_TYPE_ARB,     WGL_TYPE_RGBA_ARB,
-            WGL_ACCELERATION_ARB,   WGL_FULL_ACCELERATION_ARB,
-
-            // Extended attributes
-            //
-            WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,
-
-            0
+            WGL_ACCELERATION_ARB,   WGL_FULL_ACCELERATION_ARB
         };
 
-        if (!enable_srgb) {
-            // Remove the requirement for framebuffer sRGB support
-            //
-            u32 index = ArraySize(format_attribs) - 3;
-            format_attribs[index] = 0;
+        if (enable_srgb) {
+            format_attribs[attrib_count + 0] = WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
+            format_attribs[attrib_count + 1] = GL_TRUE;
+
+            attrib_count += 2;
         }
+
+        if (enable_multisample) {
+            format_attribs[attrib_count + 0] = WGL_SAMPLE_BUFFERS_ARB;
+            format_attribs[attrib_count + 1] = 1;
+
+            format_attribs[attrib_count + 2] = WGL_SAMPLES_ARB;
+            format_attribs[attrib_count + 3] = 4;
+
+            attrib_count += 4;
+        }
+
+        format_attribs[attrib_count] = 0;
 
         UINT format_count;
         if (!wglChoosePixelFormatARB(dc, format_attribs, 0, 1, &format_index, &format_count)) {
@@ -162,7 +175,7 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     if (!dummy_window) { return result; }
 
     dummy_dc = GetDC(dummy_window);
-    if (!WGLSetPixelFormat(dummy_dc, false)) { return result; }
+    if (!WGLSetPixelFormat(dummy_dc, false, false)) { return result; }
 
     dummy_context = wglCreateContext(dummy_dc);
     if (!dummy_dc) { return result; }
@@ -191,11 +204,12 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
         //
         if (StringsEqual(extension, WrapConst("WGL_ARB_framebuffer_sRGB"))) {
             gl->info.srgb_supported = true;
-            break; // We can break here because are only looking for one extension
         }
         else if (StringsEqual(extension, WrapConst("WGL_EXT_framebuffer_sRGB"))) {
             gl->info.srgb_supported = true;
-            break; // We can break here because are only looking for one extension
+        }
+        else if (StringsEqual(extension, WrapConst("WGL_ARB_multisample"))) {
+            gl->info.multisample_supported = true;
         }
 
         extensions = Advance(extensions, extension.count + 1);
@@ -209,7 +223,7 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     UnregisterClass(dummy_class.lpszClassName, instance);
 
     global_dc = GetDC(window);
-    if (!WGLSetPixelFormat(global_dc, gl->info.srgb_supported)) {
+    if (!WGLSetPixelFormat(global_dc, gl->info.srgb_supported, gl->info.multisample_supported)) {
         return result;
     }
 
@@ -227,9 +241,55 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     if (!global_gl_context) { return result; }
 
     result = wglMakeCurrent(global_dc, global_gl_context);
+
+    WGL_LOAD_FUNCTION(glGenVertexArrays);
+    WGL_LOAD_FUNCTION(glGenBuffers);
+    WGL_LOAD_FUNCTION(glBindVertexArray);
+    WGL_LOAD_FUNCTION(glBindBuffer);
+    WGL_LOAD_FUNCTION(glVertexAttribPointer);
+    WGL_LOAD_FUNCTION(glEnableVertexAttribArray);
+    WGL_LOAD_FUNCTION(glBufferData);
+    WGL_LOAD_FUNCTION(glShaderSource);
+    WGL_LOAD_FUNCTION(glCompileShader);
+    WGL_LOAD_FUNCTION(glGetShaderiv);
+    WGL_LOAD_FUNCTION(glGetShaderInfoLog);
+    WGL_LOAD_FUNCTION(glDeleteShader);
+    WGL_LOAD_FUNCTION(glAttachShader);
+    WGL_LOAD_FUNCTION(glLinkProgram);
+    WGL_LOAD_FUNCTION(glGetProgramiv);
+    WGL_LOAD_FUNCTION(glGetProgramInfoLog);
+    WGL_LOAD_FUNCTION(glDeleteProgram);
+    WGL_LOAD_FUNCTION(glUseProgram);
+    WGL_LOAD_FUNCTION(glUniformMatrix4fv);
+    WGL_LOAD_FUNCTION(glDrawElementsBaseVertex);
+
+    WGL_LOAD_FUNCTION(glMapBuffer);
+
+    WGL_LOAD_FUNCTION(glUnmapBuffer);
+
+    WGL_LOAD_FUNCTION(glGetUniformLocation);
+
+    WGL_LOAD_FUNCTION(glCreateProgram);
+    WGL_LOAD_FUNCTION(glCreateShader);
+
     return result;
 }
 
+function RENDERER_BEGIN_FRAME(WGLBeginFrame) {
+    Renderer_Buffer *result = 0;
+
+    OpenGL_Context *gl = cast(OpenGL_Context *) renderer;
+    result = OpenGLBeginFrame(gl, window_dim, render_region);
+
+    return result;
+}
+
+function RENDERER_SUBMIT_FRAME(WGLSubmitFrame) {
+    OpenGL_Context *gl = cast(OpenGL_Context *) renderer;
+    OpenGLSubmitFrame(gl);
+
+    SwapBuffers(global_dc);
+}
 
 function RENDERER_SHUTDOWN(WindowsOpenGLShutdown) {
     OpenGL_Context *gl = cast(OpenGL_Context *) renderer;
@@ -263,7 +323,13 @@ extern "C" __declspec(dllexport) RENDERER_INITIALISE(WindowsOpenGLInitialise) {
 
     if (wglSwapIntervalEXT) { wglSwapIntervalEXT(1); }
 
-    result->flags |= RendererContext_Initialised;
+    if (!OpenGLInitialise(gl, params)) {
+        return result;
+    }
+
+    result->BeginFrame   = WGLBeginFrame;
+    result->SubmitFrame  = WGLSubmitFrame;
+    result->flags       |= RendererContext_Initialised;
 
     return result;
 }

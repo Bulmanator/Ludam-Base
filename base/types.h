@@ -159,6 +159,31 @@ union m4x4 {
     f32 e[16];
 };
 
+struct m4x4_inv {
+    m4x4 forward;
+    m4x4 inverse;
+};
+
+struct rect2 {
+    v2 min;
+    v2 max;
+};
+
+struct rect3 {
+    v3 min;
+    v3 max;
+};
+
+// Vertex types
+//
+struct vert3 {
+    // @Todo: In the future if we actually move to full 3D we will want at least a normal on here
+    //
+    v3  p;
+    v2  uv;
+    u32 c;
+};
+
 // Utility macros
 //
 #define function static
@@ -176,5 +201,28 @@ union m4x4 {
 
 #define Clamp(x, min, max) (Min(Max(x, min), max))
 #define Clamp01(x) Clamp(x, 0, 1)
+
+// Type limits
+//
+#define U8_MAX  (u8)  (0xFF)
+#define U16_MAX (u16) (0xFFFF)
+#define U32_MAX (u32) (0xFFFF'FFFF)
+#define U64_MAX (u64) (0xFFFF'FFFF'FFFF'FFFF)
+
+#define S8_MAX  (s8)  (0x7F)
+#define S16_MAX (s16) (0x7FFF)
+#define S32_MAX (s32) (0x7FFF'FFFF)
+#define S64_MAX (s64) (0x7FFF'FFFF'FFFF'FFFF)
+
+#define S8_MIN  (s8)  (0x80)
+#define S16_MIN (s16) (0x8000)
+#define S32_MIN (s32) (0x8000'0000)
+#define S64_MIN (s64) (0x8000'0000'0000'0000)
+
+#define F32_MAX (f32) (FLT_MAX)
+#define F64_MAX (f64) (DBL_MAX)
+
+#define F32_MIN (f32) (FLT_MIN)
+#define F64_MIN (f32) (DBL_MIN)
 
 #endif  // BASE_TYPES_H_

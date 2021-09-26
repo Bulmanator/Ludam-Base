@@ -125,4 +125,30 @@ function v4  Lerp(v4 a, v4 b, f32 t);
 function v4  Minimum(v4 a, v4 b);
 function v4  Maximum(v4 a, v4 b);
 
+// m4x4 operator overloads
+//
+// [m4x4 * m4x4] [m4x4 * v4] [m4x4 * v3]
+//
+// m4x4 functions
+//
+function m4x4 Identity();
+
+function v4 Transform(m4x4 a, v4 b);
+function m4x4 Translate(m4x4 a, v3 b);
+
+function m4x4 XRotation(f32 angle);
+function m4x4 YRotation(f32 angle);
+function m4x4 ZRotation(f32 angle);
+
+function v3 GetRow(m4x4 a, u32 row);
+function v3 GetColumn(m4x4 a, u32 col);
+
+function m4x4 Rows3x3(v3 x, v3 y, v3 z);
+
+function m4x4 Columns3x3(v3 x, v3 y, v3 z);
+
+function m4x4_inv OrthographicProjection(f32 aspect, f32 near_plane, f32 far_plane);
+function m4x4_inv PerspectiveProjection(f32 fov, f32 aspect, f32 near_plane, f32 far_plane);
+function m4x4_inv CameraTransform(v3 x, v3 y, v3 z, v3 p);
+
 #endif  // BASE_MATHS_H_

@@ -822,3 +822,223 @@ function v4 Maximum(v4 a, v4 b) {
 
     return result;
 }
+
+// m4x4 operator overloads
+//
+function m4x4 operator*(m4x4 a, m4x4 b) {
+    m4x4 result;
+    for (u32 r = 0; r < 4; ++r) {
+        for (u32 c = 0; c < 4; ++c) {
+            result.m[r][c] =
+                (a.m[r][0] * b.m[0][c]) + (a.m[r][1] * b.m[1][c]) +
+                (a.m[r][2] * b.m[2][c]) + (a.m[r][3] * b.m[3][c]);
+        }
+    }
+
+    return result;
+}
+
+function v4 operator*(m4x4 a, v4 b) {
+    v4 result = Transform(a, b);
+    return result;
+}
+
+function v3 operator*(m4x4 a, v3 b) {
+    v4 point = Transform(a, V4(b, 1.0f));
+
+    v3 result = point.xyz;
+    return result;
+}
+
+// m4x4 functions
+//
+function m4x4 Identity() {
+    m4x4 result = {
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    };
+
+    return result;
+}
+
+function v4 Transform(m4x4 a, v4 b) {
+    v4 result;
+    result.x = Dot(b, a.r[0]);
+    result.y = Dot(b, a.r[1]);
+    result.z = Dot(b, a.r[2]);
+    result.w = Dot(b, a.r[3]);
+
+    return result;
+}
+
+function m4x4 Translate(m4x4 a, v3 b) {
+    m4x4 result = a;
+    result.m[0][3] += b.x;
+    result.m[1][3] += b.y;
+    result.m[2][3] += b.z;
+
+    return result;
+}
+
+function m4x4 XRotation(f32 angle) {
+    f32 s = Sin(angle);
+    f32 c = Cos(angle);
+
+    m4x4 result = {
+        1, 0,  0, 0,
+        0, c, -s, 0,
+        0, s,  c, 0,
+        0, 0,  0, 0
+    };
+
+    return result;
+}
+
+function m4x4 YRotation(f32 angle) {
+    f32 s = Sin(angle);
+    f32 c = Cos(angle);
+
+    m4x4 result = {
+         c, 0,  s, 0,
+         0, 1,  0, 0,
+        -s, 0,  c, 0,
+         0, 0,  0, 0
+    };
+
+    return result;
+}
+
+function m4x4 ZRotation(f32 angle) {
+    f32 s = Sin(angle);
+    f32 c = Cos(angle);
+
+    m4x4 result = {
+        c, -s, 0, 0,
+        s,  c, 0, 0,
+        0,  0, 1, 0,
+        0,  0, 0, 0
+    };
+
+    return result;
+}
+
+function v3 GetRow(m4x4 a, u32 row) {
+    v3 result = a.r[row].xyz;
+    return result;
+}
+
+function v3 GetColumn(m4x4 a, u32 col) {
+    v3 result;
+    result.x = a.m[0][col];
+    result.y = a.m[1][col];
+    result.z = a.m[2][col];
+
+    return result;
+}
+
+function m4x4 Rows3x3(v3 x, v3 y, v3 z) {
+    m4x4 result = {
+        x.x, x.y, x.z, 0,
+        y.x, y.y, y.z, 0,
+        z.x, z.y, z.z, 0,
+        0,   0,   0,   1
+    };
+
+    return result;
+}
+
+function m4x4 Columns3x3(v3 x, v3 y, v3 z) {
+    m4x4 result = {
+        x.x, y.x, z.x, 0,
+        x.y, y.y, z.y, 0,
+        x.z, y.z, z.z, 0,
+        0,   0,   0,   1
+    };
+
+    return result;
+}
+
+function m4x4_inv OrthographicProjection(f32 aspect, f32 near_plane, f32 far_plane) {
+    f32 a = 1.0;
+    f32 b = -aspect;
+
+    f32 c = 2.0f / (near_plane - far_plane);
+    f32 d = (near_plane + far_plane) / (near_plane - far_plane);
+
+    m4x4_inv result = {
+        // Forward
+        //
+        {
+            a, 0, 0, 0,
+            0, b, 0, 0,
+            0, 0, c, d,
+            0, 0, 0, 1
+        },
+
+        // Inverse
+        //
+        {
+            (1.0f / a),  0,         0,           0,
+             0,         (1.0f / b), 0,           0,
+             0,          0,        (1.0f / c), -(d / c),
+             0,          0,         0,           1
+        }
+    };
+
+    return result;
+}
+
+function m4x4_inv PerspectiveProjection(f32 fov, f32 aspect, f32 near_plane, f32 far_plane) {
+    f32 focal_len = (1.0f / Tan(0.5f * fov));
+
+    f32 a = -(focal_len / aspect);
+    f32 b = (focal_len);
+
+    f32 c = -(near_plane + far_plane) / (far_plane - near_plane);
+    f32 d = -(2.0f * near_plane * far_plane) / (far_plane - near_plane);
+
+    m4x4_inv result = {
+        // Forward
+        //
+        {
+            a, 0,  0, 0,
+            0, b,  0, 0,
+            0, 0,  c, d,
+            0, 0, -1, 0
+        },
+
+        // Inverse
+        //
+        {
+            (1.0f / a),  0,          0,          0,
+            0,          (1.0f / b),  0,          0,
+            0,           0,          0,         -1,
+            0,           0,         (1.0f / d), (c /d)
+        }
+    };
+
+    return result;
+}
+
+function m4x4_inv CameraTransform(v3 x, v3 y, v3 z, v3 p) {
+    m4x4_inv result;
+
+    result.forward = Rows3x3(x, y, z);
+
+    v3 txp = -(result.forward * p);
+    result.forward = Translate(result.forward, txp);
+
+    v3 ix = x * (1.0f / Dot(x, x));
+    v3 iy = y * (1.0f / Dot(y, y));
+    v3 iz = z * (1.0f / Dot(z, z));
+    v3 ip = V3((txp.x * ix.x) + (txp.y * iy.x) + (txp.z * iz.x),
+               (txp.x * ix.y) + (txp.y * iy.y) + (txp.z * iz.y),
+               (txp.x * ix.z) + (txp.y * iy.z) + (txp.z * iz.z));
+
+    result.inverse = Columns3x3(x, y, z);
+    result.inverse = Translate(result.inverse, -ip);
+
+    return result;
+}

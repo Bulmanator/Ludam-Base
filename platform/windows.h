@@ -7,6 +7,7 @@
 
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
+#include <shellscalingapi.h>
 
 #define function static
 
@@ -69,5 +70,9 @@ function void WindowsToggleFullscreen();
 // wanted.
 //
 function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params);
+
+// Get the current size of the window
+//
+function v2u WindowsGetWindowDim();
 
 #endif  // PLATFORM_WINDOWS_H_
