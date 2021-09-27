@@ -9,6 +9,8 @@ function str8 WrapRange(u8 *start, u8 *end);
 function str8 WrapZ(u8 *z);
 function str8 WrapZ(const char *z);
 
+function b32 IsValid(str8 str);
+
 function str8 Advance(str8 base, uptr count);
 function str8 Remove(str8 base, uptr count);
 

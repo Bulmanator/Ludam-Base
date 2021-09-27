@@ -8,11 +8,13 @@
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
 #include <shellscalingapi.h>
+#include <shlobj.h>
+#include <pathcch.h>
 
 #define function static
 
 struct Windows_Context {
-    Platform_Context platform;
+    Platform_Context platform; // This _must_ remain at the top of this structure
 
     b32 running;
 
@@ -27,16 +29,19 @@ struct Windows_Context {
     f64 performance_freq;
     u64 last_time;
 
-    b32 fullscreen;
     WINDOWPLACEMENT placement;
 
     HWND window;
     v2u window_dim;
 
     HMODULE renderer_dll;
+
+    str8 exe_path;
+    str8 user_path;
+    str8 working_path;
 };
 
-global Windows_Context windows_context;
+global Windows_Context *windows_context;
 
 struct Windows_Parameters {
     u32 init_flags;

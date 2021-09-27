@@ -32,7 +32,7 @@ function MEMORY_ALLOCATOR_MODIFY(WindowsAllocatorRelease) {
 // Platform context functions
 //
 function PLATFORM_GET_MEMORY_ALLOCATOR(WindowsGetMemoryAllocator) {
-    Memory_Allocator *result = &windows_context.alloc;
+    Memory_Allocator *result = &windows_context->alloc;
 
     if (!result->Reserve) {
         result->context = 0;
@@ -47,7 +47,133 @@ function PLATFORM_GET_MEMORY_ALLOCATOR(WindowsGetMemoryAllocator) {
 }
 
 function PLATFORM_GET_THREAD_CONTEXT(WindowsGetThreadContext) {
-    Thread_Context *result = cast(Thread_Context *) TlsGetValue(windows_context.tls_handle);
+    Thread_Context *result = cast(Thread_Context *) TlsGetValue(windows_context->tls_handle);
+    return result;
+}
+
+function PLATFORM_GET_PATH(WindowsGetPath) {
+    str8 result = {};
+
+    Scratch_Memory scratch = GetScratch();
+
+    switch (path) {
+        case PlatformPath_Executable: {
+            if (!IsValid(windows_context->exe_path)) {
+                WCHAR *exe_path;
+                DWORD  exe_path_count = 4096;
+
+                // Get the executable path
+                //
+                while (true) {
+                    exe_path = AllocArray(scratch.arena, WCHAR, exe_path_count);
+                    exe_path_count = GetModuleFileNameW(0, exe_path, exe_path_count);
+
+                    DWORD err = GetLastError();
+                    if (err != ERROR_INSUFFICIENT_BUFFER) { break; }
+
+                    exe_path_count *= 2;
+                }
+
+                // Remove the executable filename from the end of the string
+                //
+                DWORD last = 0;
+                for (DWORD it = 0; it < exe_path_count; ++it) {
+                    if (exe_path[it] == L'\\') {
+                        last = it;
+                    }
+                }
+
+                exe_path[last] = 0;
+                exe_path_count = last;
+
+                // Convert the UTF-16 string to UTF-8 for use in the game code
+                //
+                u32 count = WideCharToMultiByte(CP_UTF8, 0, exe_path, last, 0, 0, 0, 0);
+                u8 *data  = AllocArray(&windows_context->arena, u8, count);
+
+                WideCharToMultiByte(CP_UTF8, 0, exe_path, -1, cast(LPSTR) data, count, 0, 0);
+
+                windows_context->exe_path = WrapCount(data, count);
+            }
+
+            result = windows_context->exe_path;
+        }
+        break;
+
+        case PlatformPath_User: {
+            if (!IsValid(windows_context->user_path)) {
+                DWORD  user_path_count = 0;
+                WCHAR *user_path = AllocArray(scratch.arena, WCHAR, 2 * MAX_PATH);
+
+                // This function call doesn't give us any information about the returned string and won't
+                // even say it 'failed' if the buffer is too small. The only thing the documentation says
+                // is the buffer passed to it has to be at least MAX_PATH in characters.
+                //
+                if (!SHGetSpecialFolderPathW(0, user_path, CSIDL_APPDATA, TRUE)) {
+                    return result;
+                }
+
+                LPWSTR appends[] = {
+                    L"\\ametentia",
+                    L"\\ludum dare"
+                };
+
+                for (u32 it = 0; it < ArraySize(appends); ++it) {
+                    PathCchAppend(user_path, 2 * MAX_PATH, appends[it]);
+
+                    // Check if the directory exists
+                    //
+                    DWORD attrs = GetFileAttributesW(user_path);
+                    if ((attrs == INVALID_FILE_ATTRIBUTES) || !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                        if (!CreateDirectoryW(user_path, 0)) {
+                            break;
+                        }
+                    }
+                }
+
+                // The path appending doesn't give us the length so find the null-terminating byte
+                //
+                while (user_path[user_path_count] != 0) { user_path_count += 1; }
+
+                // Convert from UTF-16 to UTF-8 for use in game code
+                //
+                u32 count = WideCharToMultiByte(CP_UTF8, 0, user_path, user_path_count, 0, 0, 0, 0);
+                u8 *data  = AllocArray(&windows_context->arena, u8, count);
+
+                WideCharToMultiByte(CP_UTF8, 0, user_path, user_path_count, cast(LPSTR) data, count, 0, 0);
+
+                windows_context->user_path = WrapCount(data, count);
+            }
+
+            result = windows_context->user_path;
+        }
+        break;
+
+        case PlatformPath_Working: {
+            if (!IsValid(windows_context->working_path)) {
+                WCHAR *working_path = AllocArray(scratch.arena, WCHAR, MAX_PATH);
+                DWORD working_path_count = GetCurrentDirectoryW(MAX_PATH, working_path);
+                if (working_path_count > MAX_PATH) {
+                    working_path = AllocArray(scratch.arena, WCHAR, working_path_count);
+
+                    working_path_count = GetCurrentDirectoryW(working_path_count, working_path);
+                }
+
+                // Convert UTF-16 to UTF-8 for use in the game code
+                //
+                u32 count = WideCharToMultiByte(CP_UTF8, 0, working_path, working_path_count, 0, 0, 0, 0);
+                u8 *data  = AllocArray(&windows_context->arena, u8, count);
+
+                WideCharToMultiByte(CP_UTF8, 0, working_path, working_path_count, cast(LPSTR) data, count, 0, 0);
+
+                windows_context->working_path = WrapCount(data, count);
+            }
+
+            result = windows_context->working_path;
+        }
+        break;
+    }
+
     return result;
 }
 
@@ -62,7 +188,7 @@ function u64 WindowsGetTicks() {
 }
 
 function f64 WindowsGetElapsedTime(u64 start, u64 end) {
-    f64 result = cast(f64) (end - start) / windows_context.performance_freq;
+    f64 result = cast(f64) (end - start) / windows_context->performance_freq;
     return result;
 }
 
@@ -168,19 +294,26 @@ function LRESULT WindowsMainWindowMessageHandler(HWND window, UINT message, WPAR
     switch (message) {
         case WM_QUIT:
         case WM_CLOSE: {
-            windows_context.running = false;
+            windows_context->running = false;
         }
         break;
 
         case WM_SIZE: {
-            windows_context.window_dim.w = LOWORD(lparam);
-            windows_context.window_dim.h = HIWORD(lparam);
+            windows_context->window_dim.w = LOWORD(lparam);
+            windows_context->window_dim.h = HIWORD(lparam);
         }
         break;
 
         case WM_DPICHANGED: {
             LPRECT rect = cast(LPRECT) lparam;
             SetWindowPos(window, 0, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOOWNERZORDER | SWP_NOZORDER);
+        }
+        break;
+
+        case WM_PAINT: {
+            PAINTSTRUCT paint;
+            BeginPaint(windows_context->window, &paint);
+            EndPaint(windows_context->window, &paint);
         }
         break;
 
@@ -199,13 +332,13 @@ function void WindowsHandleInput(Input *input) {
     // Delta time calculation
     //
     u64 current_time   = WindowsGetTicks();
-    input->delta_time  = WindowsGetElapsedTime(windows_context.last_time, current_time);
+    input->delta_time  = WindowsGetElapsedTime(windows_context->last_time, current_time);
     input->time       += input->delta_time;
 
-    windows_context.last_time = current_time;
+    windows_context->last_time = current_time;
 
     MSG msg;
-    while (PeekMessageA(&msg, windows_context.window, 0, 0, PM_REMOVE)) {
+    while (PeekMessageA(&msg, windows_context->window, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
             case WM_SYSKEYDOWN:
             case WM_SYSKEYUP:
@@ -237,8 +370,8 @@ function void WindowsHandleInput(Input *input) {
                 POINTS point = MAKEPOINTS(msg.lParam);
 
                 v2 mouse_clip;
-                mouse_clip.x = -1.0f + (2.0f * (cast(f32) point.x / cast(f32) windows_context.window_dim.x));
-                mouse_clip.y = -1.0f + (2.0f * (cast(f32) point.y / cast(f32) windows_context.window_dim.y));
+                mouse_clip.x = -1.0f + (2.0f * (cast(f32) point.x / cast(f32) windows_context->window_dim.x));
+                mouse_clip.y = -1.0f + (2.0f * (cast(f32) point.y / cast(f32) windows_context->window_dim.y));
 
                 v2 old_clip = input->mouse_clip;
 
@@ -259,7 +392,7 @@ function void WindowsHandleInput(Input *input) {
         }
     }
 
-    input->requested_quit = !windows_context.running;
+    input->requested_quit = !windows_context->running;
 }
 
 // Initialisation
@@ -273,7 +406,7 @@ function void WindowsInitialiseThreadContext(Thread_Context *tctx) {
 function b32 WindowsInitialise(Windows_Parameters *params) {
     b32 result = false;
 
-    // Enable HighDPI support
+    // Enable High DPI support
     //
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
@@ -285,29 +418,35 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
     b32 enable_audio = (params->init_flags & PlatformInit_EnableAudio);
     (void) enable_audio;
 
+    Memory_Allocator alloc;
+    alloc.context  = 0;
+    alloc.Reserve  = WindowsAllocatorReserve;
+    alloc.Commit   = WindowsAllocatorCommit;
+    alloc.Decommit = WindowsAllocatorDecommit;
+    alloc.Release  = WindowsAllocatorRelease;
+
+    windows_context = AllocInline(&alloc, Megabytes(64), Windows_Context, arena);
+
     // Setup platform context
     //
-    Platform = &windows_context.platform;
+    Platform = cast(Platform_Context *) windows_context;
 
     Platform->GetMemoryAllocator = WindowsGetMemoryAllocator;
     Platform->GetThreadContext   = WindowsGetThreadContext;
 
-    // Initialise the Windows memory arena for permanent platform side allocations
-    //
-    Memory_Allocator *alloc = Platform->GetMemoryAllocator();
-    Initialise(&windows_context.arena, alloc, Megabytes(64));
+    Platform->GetPath            = WindowsGetPath;
 
     LARGE_INTEGER freq;
     if (!QueryPerformanceFrequency(&freq)) {
         return result;
     }
 
-    windows_context.performance_freq = cast(f64) freq.QuadPart;
+    windows_context->performance_freq = cast(f64) freq.QuadPart;
 
     // Allocate thread local storage handle
     //
-    windows_context.tls_handle = TlsAlloc();
-    if (windows_context.tls_handle == TLS_OUT_OF_INDEXES) {
+    windows_context->tls_handle = TlsAlloc();
+    if (windows_context->tls_handle == TLS_OUT_OF_INDEXES) {
         return result;
     }
 
@@ -315,11 +454,11 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
     //
     // @Todo: Allow for more threads
     //
-    windows_context.thread_count    = 1;
-    windows_context.thread_contexts = AllocArray(&windows_context.arena, Thread_Context, windows_context.thread_count);
+    windows_context->thread_count    = 1;
+    windows_context->thread_contexts = AllocArray(&windows_context->arena, Thread_Context, windows_context->thread_count);
 
-    WindowsInitialiseThreadContext(&windows_context.thread_contexts[0]);
-    TlsSetValue(windows_context.tls_handle, cast(LPVOID) &windows_context.thread_contexts[0]);
+    WindowsInitialiseThreadContext(&windows_context->thread_contexts[0]);
+    TlsSetValue(windows_context->tls_handle, cast(LPVOID) &windows_context->thread_contexts[0]);
 
     if (open_window) {
         HINSTANCE instance = GetModuleHandleA(0);
@@ -369,26 +508,25 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
             window_dim.h = (window_rect.bottom - window_rect.top);
         }
 
-        windows_context.window = CreateWindowExA(0, class_name, window_title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, window_dim.w, window_dim.h, 0, 0, instance, 0);
-        if (!windows_context.window) {
+        windows_context->window = CreateWindowExA(0, class_name, window_title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, window_dim.w, window_dim.h, 0, 0, instance, 0);
+        if (!windows_context->window) {
             return result;
         }
 
-        ShowWindow(windows_context.window, params->show_cmd);
+        ShowWindow(windows_context->window, params->show_cmd);
     }
 
-    windows_context.fullscreen = false;
-    windows_context.running = true;
+    windows_context->running = true;
 
     result = true;
     return result;
 }
 
 function void WindowsSetFullscreen(b32 fullscreen) {
-    DWORD style = GetWindowLong(windows_context.window, GWL_STYLE);
+    DWORD style = GetWindowLong(windows_context->window, GWL_STYLE);
     if (fullscreen) {
-        if (GetWindowPlacement(windows_context.window, &windows_context.placement)) {
-            HMONITOR monitor = MonitorFromWindow(windows_context.window, MONITOR_DEFAULTTOPRIMARY);
+        if (GetWindowPlacement(windows_context->window, &windows_context->placement)) {
+            HMONITOR monitor = MonitorFromWindow(windows_context->window, MONITOR_DEFAULTTOPRIMARY);
             MONITORINFO monitor_info = {};
             monitor_info.cbSize = sizeof(MONITORINFO);
 
@@ -399,20 +537,20 @@ function void WindowsSetFullscreen(b32 fullscreen) {
                 dim.w = (monitor_info.rcMonitor.right - monitor_info.rcMonitor.left);
                 dim.h = (monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top);
 
-                SetWindowLongA(windows_context.window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
-                SetWindowPos(windows_context.window, HWND_TOP, pos.x, pos.y, dim.w, dim.h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+                SetWindowLongA(windows_context->window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+                SetWindowPos(windows_context->window, HWND_TOP, pos.x, pos.y, dim.w, dim.h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
             }
         }
     }
     else {
-        SetWindowLongA(windows_context.window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(windows_context.window, &windows_context.placement);
-        SetWindowPos(windows_context.window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        SetWindowLongA(windows_context->window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(windows_context->window, &windows_context->placement);
+        SetWindowPos(windows_context->window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
 }
 
 function void WindowsToggleFullscreen() {
-    DWORD style = GetWindowLong(windows_context.window, GWL_STYLE);
+    DWORD style = GetWindowLong(windows_context->window, GWL_STYLE);
     WindowsSetFullscreen(style & WS_OVERLAPPEDWINDOW);
 }
 
@@ -426,7 +564,7 @@ function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params) {
         return result;
     }
 
-    windows_context.renderer_dll = renderer_dll;
+    windows_context->renderer_dll = renderer_dll;
 
     Renderer_Initialise *Initialise = cast(Renderer_Initialise *) GetProcAddress(renderer_dll, "WindowsOpenGLInitialise");
     if (!Initialise) {
@@ -436,7 +574,7 @@ function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params) {
     // Set the platform data required for initialisation
     //
     *cast(HINSTANCE *) &params->platform_data[0] = GetModuleHandle(0);
-    *cast(HWND *)      &params->platform_data[1] = windows_context.window;
+    *cast(HWND *)      &params->platform_data[1] = windows_context->window;
 
     params->platform_alloc = Platform->GetMemoryAllocator();
 
@@ -448,7 +586,7 @@ function v2u WindowsGetWindowDim() {
     v2u result = V2U(0, 0);
 
     RECT client_rect;
-    if (GetClientRect(windows_context.window, &client_rect)) {
+    if (GetClientRect(windows_context->window, &client_rect)) {
         result.w = (client_rect.right - client_rect.left);
         result.h = (client_rect.bottom - client_rect.top);
     }

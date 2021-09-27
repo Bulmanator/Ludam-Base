@@ -39,6 +39,11 @@ function str8 WrapZ(const char *z) {
     return result;
 }
 
+function b32 IsValid(str8 str) {
+    b32 result = (str.count != 0) && (str.data != 0);
+    return result;
+}
+
 function str8 Advance(str8 base, uptr count) {
     str8 result;
 
