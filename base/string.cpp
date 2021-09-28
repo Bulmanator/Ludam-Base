@@ -96,6 +96,69 @@ function str8 Substring(str8 base, uptr start, uptr end) {
     return result;
 }
 
+function uptr ProcessFormat(str8 output, const char *format, va_list args) {
+    uptr result = vsnprintf(cast(char *) output.data, output.count, format, args);
+    return result;
+}
+
+function str8 FormatStrArgs(Memory_Arena *arena, const char *format, va_list args) {
+    str8 result;
+
+    va_list copy;
+    va_copy(copy, args); // Needed in case the initial attempt buffer is too short
+
+    str8 buffer;
+    buffer.count = 1024;
+    buffer.data  = AllocArray(arena, u8, buffer.count);
+
+    result.count = ProcessFormat(buffer, format, args);
+    if (result.count > buffer.count) {
+        RemoveSize(arena, buffer.count);
+
+        result.data = AllocArray(arena, u8, result.count);
+        ProcessFormat(result, format, copy);
+    }
+    else {
+        uptr to_remove = buffer.count - result.count;
+        RemoveSize(arena, to_remove);
+
+        result.data = buffer.data;
+    }
+
+    return result;
+}
+
+function str8 FormatStrArgs(str8 buffer, const char *format, va_list args) {
+    str8 result;
+    uptr count = ProcessFormat(buffer, format, args);
+    result.count = Min(count, buffer.count);
+    result.data  = buffer.data;
+
+    return result;
+}
+
+function str8 FormatStr(Memory_Arena *arena, const char *format, ...) {
+    str8 result;
+
+    va_list args;
+    va_start(args, format);
+    result = FormatStrArgs(arena, format, args);
+    va_end(args);
+
+    return result;
+}
+
+function str8 FormatStr(str8 buffer, const char *format, ...) {
+    str8 result;
+
+    va_list args;
+    va_start(args, format);
+    result = FormatStrArgs(buffer, format, args);
+    va_end(args);
+
+    return result;
+}
+
 function const char *CopyZ(Memory_Arena *arena, str8 str) {
     const char *result = 0;
 

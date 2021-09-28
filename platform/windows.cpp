@@ -1,5 +1,29 @@
 Platform_Context *Platform; // for the extern
 
+// Utiltiy functions
+//
+function str8 WindowsToUTF8(Memory_Arena *arena, WCHAR *data, u32 count) {
+    str8 result;
+    result.count = WideCharToMultiByte(CP_UTF8, 0, data, count, 0, 0, 0, 0);
+    result.data  = AllocArray(arena, u8, result.count);
+
+    WideCharToMultiByte(CP_UTF8, 0, data, count, cast(LPSTR) result.data, cast(u32) result.count, 0, 0);
+
+    return result;
+}
+
+function WCHAR *WindowsToUTF16(Memory_Arena *arena, str8 str, uptr *result_count) {
+    WCHAR *result = 0;
+    u32 count = MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) str.data, cast(u32) str.count, 0, 0);
+    result = AllocArray(arena, WCHAR, count);
+
+    MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) str.data, cast(u32) str.count, result, count);
+
+    if (result_count) { *result_count = count; }
+
+    return result;
+}
+
 // Memory allocation functions
 //
 function MEMORY_ALLOCATOR_RESERVE(WindowsAllocatorReserve) {
@@ -88,12 +112,7 @@ function PLATFORM_GET_PATH(WindowsGetPath) {
 
                 // Convert the UTF-16 string to UTF-8 for use in the game code
                 //
-                u32 count = WideCharToMultiByte(CP_UTF8, 0, exe_path, last, 0, 0, 0, 0);
-                u8 *data  = AllocArray(&windows_context->arena, u8, count);
-
-                WideCharToMultiByte(CP_UTF8, 0, exe_path, -1, cast(LPSTR) data, count, 0, 0);
-
-                windows_context->exe_path = WrapCount(data, count);
+                windows_context->exe_path = WindowsToUTF8(&windows_context->arena, exe_path, last);
             }
 
             result = windows_context->exe_path;
@@ -137,12 +156,7 @@ function PLATFORM_GET_PATH(WindowsGetPath) {
 
                 // Convert from UTF-16 to UTF-8 for use in game code
                 //
-                u32 count = WideCharToMultiByte(CP_UTF8, 0, user_path, user_path_count, 0, 0, 0, 0);
-                u8 *data  = AllocArray(&windows_context->arena, u8, count);
-
-                WideCharToMultiByte(CP_UTF8, 0, user_path, user_path_count, cast(LPSTR) data, count, 0, 0);
-
-                windows_context->user_path = WrapCount(data, count);
+                windows_context->user_path = WindowsToUTF8(&windows_context->arena, user_path, user_path_count);
             }
 
             result = windows_context->user_path;
@@ -161,12 +175,7 @@ function PLATFORM_GET_PATH(WindowsGetPath) {
 
                 // Convert UTF-16 to UTF-8 for use in the game code
                 //
-                u32 count = WideCharToMultiByte(CP_UTF8, 0, working_path, working_path_count, 0, 0, 0, 0);
-                u8 *data  = AllocArray(&windows_context->arena, u8, count);
-
-                WideCharToMultiByte(CP_UTF8, 0, working_path, working_path_count, cast(LPSTR) data, count, 0, 0);
-
-                windows_context->working_path = WrapCount(data, count);
+                windows_context->working_path = WindowsToUTF8(&windows_context->arena, working_path, working_path_count);
             }
 
             result = windows_context->working_path;
@@ -175,6 +184,162 @@ function PLATFORM_GET_PATH(WindowsGetPath) {
     }
 
     return result;
+}
+
+function PLATFORM_LIST_PATH(WindowsListPath) {
+    Path_List result = {};
+
+    Scratch_Memory scratch = GetScratch(&arena, 1);
+
+    u32 count = MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) path.data, cast(u32) path.count, 0, 0) + 6;
+
+    WCHAR *wpath = AllocArray(scratch.arena, WCHAR, count);
+    MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) path.data, cast(u32) path.count, wpath, count);
+
+    PathCchAppend(wpath, count, L"\\*.*");
+
+    WIN32_FIND_DATAW find_data = {};
+    HANDLE find_handle = FindFirstFileW(wpath, &find_data);
+    if (find_handle == INVALID_HANDLE_VALUE) { return result; }
+
+    for (; FindNextFileW(find_handle, &find_data);) {
+        WCHAR *filename = find_data.cFileName;
+
+        // @Note: We don't care about the relative paths to the current directory or the previous
+        // directory so just skip them. It *seems* like they are always the first two entries to
+        // show up when using FindFirstFile/FindNextFile but I couldn't find anything concrete to
+        // support this. Instead of just skipping the first two entries we make sure the names match
+        //
+        if (filename[0] == L'.' && filename[1] == 0) { continue; } // Ignore '.'
+        if (filename[0] == L'.' && filename[1] == L'.' && filename[2] == 0) { continue; } // Ignore '..'
+
+        Path_Entry_Type type;
+
+        // @Note: Windows marks all normal files as "ready for archiving" for some reason which causes
+        // their attributes to come up as FILE_ATTRIBUTE_ARCHIVE instead of FILE_ATTRIBUTE_NORMAL so
+        // we have to test for both.. I guess?
+        //
+        if (find_data.dwFileAttributes == FILE_ATTRIBUTE_NORMAL ||
+            find_data.dwFileAttributes == FILE_ATTRIBUTE_ARCHIVE)
+        {
+            type = PathEntry_File;
+        }
+        else if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            type = PathEntry_Directory;
+        }
+        else {
+            continue;
+        }
+
+        u32 filename_count = 0;
+        while (filename[filename_count] != 0) { filename_count += 1; }
+
+        FILETIME *mtime = &find_data.ftLastWriteTime;
+
+        Path_Entry *entry = AllocType(arena, Path_Entry);
+
+        entry->type = type;
+        entry->size = (cast(uptr) find_data.nFileSizeHigh << 32) | cast(uptr) find_data.nFileSizeLow;
+        entry->time = (cast(u64)  mtime->dwHighDateTime   << 32) | cast(u32) mtime->dwLowDateTime;
+
+        // @Todo: basename could use the same memory as full_path
+        //
+        entry->basename  = WindowsToUTF8(arena, filename, filename_count);
+        entry->full_path = FormatStr(arena, "%.*s\\%.*s", str8_unpack(path), str8_unpack(entry->basename));
+
+        entry->next = 0;
+
+        if (!result.first) {
+            result.first = entry;
+            result.last  = entry;
+        }
+        else {
+            result.last->next = entry;
+            result.last       = entry;
+        }
+
+        result.entry_count += 1;
+    }
+
+
+    return result;
+}
+
+function PLATFORM_OPEN_FILE(WindowsOpenFile) {
+    File_Handle result = {};
+
+    DWORD access   = 0;
+    DWORD creation = 0;
+
+    if (access_flags & FileAccess_Read) {
+        access   |= GENERIC_READ;
+        creation  = OPEN_EXISTING;
+    }
+
+    if (access_flags & FileAccess_Write) {
+        access   |= GENERIC_WRITE;
+        creation  = OPEN_ALWAYS;
+    }
+
+    Scratch_Memory scratch = GetScratch();
+
+    u32 count = MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) path.data, cast(u32) path.count, 0, 0);
+    WCHAR *wpath = AllocArray(scratch.arena, WCHAR, count + 1);
+
+    MultiByteToWideChar(CP_UTF8, 0, cast(LPSTR) path.data, cast(u32) path.count, wpath, count);
+    wpath[count] = 0;
+
+    HANDLE handle = CreateFileW(wpath, access, FILE_SHARE_READ, 0, creation, 0, 0);
+    if (handle == INVALID_HANDLE_VALUE) { result.errors = true; }
+
+    *cast(HANDLE *) &result.platform = handle;
+
+    return result;
+}
+
+function PLATFORM_CLOSE_FILE(WindowsCloseFile) {
+    HANDLE win_handle = *cast(HANDLE *) &handle->platform;
+    if (win_handle != INVALID_HANDLE_VALUE) {
+        CloseHandle(win_handle);
+    }
+}
+
+function PLATFORM_ACCESS_FILE(WindowsReadFile) {
+    if (handle->errors) { return; }
+    HANDLE win_handle = *cast(HANDLE *) &handle->platform;
+
+    // @Todo: Should probably read in multiple chunks but probably not going to be reading > 4GiB at a time
+    // so whatever
+    //
+    DWORD to_read = cast(DWORD) size;
+    DWORD bytes_read = 0;
+
+    OVERLAPPED overlapped = {};
+    overlapped.Offset     = cast(DWORD) (offset >>  0);
+    overlapped.OffsetHigh = cast(DWORD) (offset >> 32);
+
+    if (!ReadFile(win_handle, data, to_read, &bytes_read, &overlapped)) {
+        handle->errors = true;
+    }
+}
+
+function PLATFORM_ACCESS_FILE(WindowsWriteFile) {
+    if (handle->errors) { return; }
+    HANDLE win_handle = *cast(HANDLE *) &handle->platform;
+
+    // @Todo: Should probably write in multiple chunks but probably not going to be writing > 4GiB at a time
+    // so whatever
+    //
+    DWORD to_write = cast(DWORD) size;
+    DWORD bytes_written = 0;
+
+    OVERLAPPED overlapped = {};
+    overlapped.Offset     = cast(DWORD) (offset >>  0);
+    overlapped.OffsetHigh = cast(DWORD) (offset >> 32);
+
+    if (!WriteFile(win_handle, data, to_write, &bytes_written, &overlapped)) {
+        handle->errors = true;
+    }
 }
 
 // Input handling
@@ -435,6 +600,13 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
     Platform->GetThreadContext   = WindowsGetThreadContext;
 
     Platform->GetPath            = WindowsGetPath;
+    Platform->ListPath           = WindowsListPath;
+
+    Platform->OpenFile           = WindowsOpenFile;
+    Platform->CloseFile          = WindowsCloseFile;
+
+    Platform->ReadFile           = WindowsReadFile;
+    Platform->WriteFile          = WindowsWriteFile;
 
     LARGE_INTEGER freq;
     if (!QueryPerformanceFrequency(&freq)) {

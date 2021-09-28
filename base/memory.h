@@ -57,6 +57,11 @@ function void Initialise(Memory_Arena *arena, Memory_Allocator *alloc, uptr size
 //
 function void Reset(Memory_Arena *arena, b32 release = false);
 
+// Removes the given size from the last allocation that was made on the arena. This is not valid across multiple
+// allocations because of alignment properties
+//
+function void RemoveSize(Memory_Arena *arena, uptr size);
+
 // Allocation macros. These should be used to allocate from arenas.
 //
 // Parameters are as follows:

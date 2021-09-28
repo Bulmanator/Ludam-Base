@@ -1,6 +1,16 @@
 #if !defined(BASE_STRING_H_)
 #define BASE_STRING_H_
 
+#if defined(function)
+#    undef function
+#endif
+
+// @Temp: This is here until we implement our own format string routine
+//
+#include <stdio.h>
+
+#define function static
+
 #define WrapConst(str) WrapCount((u8 *) str, sizeof(str) - 1)
 
 function str8 WrapCount(u8 *data, uptr count);
@@ -18,6 +28,16 @@ function str8 Suffix(str8 base, uptr count);
 function str8 Prefix(str8 base, uptr count);
 
 function str8 Substring(str8 base, uptr start, uptr end);
+
+// Formatting strings
+//
+#define str8_unpack(str) (u32) (str).count, (str).data
+
+function str8 FormatStrArgs(Memory_Arena *arena, const char *format, va_list args);
+function str8 FormatStrArgs(str8 buffer, const char *format, va_list args);
+
+function str8 FormatStr(Memory_Arena *arena, const char *format, ...);
+function str8 FormatStr(str8 buffer, const char *format, ...);
 
 // Make a copy of the string that is null-terminated
 //

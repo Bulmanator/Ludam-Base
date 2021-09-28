@@ -65,7 +65,7 @@ struct File_Handle {
 };
 
 #define PLATFORM_OPEN_FILE(name) File_Handle name(str8 path, u32 access_flags)
-#define PLATFORM_CLOSE_FILE(name) void name(File_Handle *handle);
+#define PLATFORM_CLOSE_FILE(name) void name(File_Handle *handle)
 
 typedef PLATFORM_OPEN_FILE(Platform_Open_File);
 typedef PLATFORM_CLOSE_FILE(Platform_Close_File);

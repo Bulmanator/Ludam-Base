@@ -26,6 +26,12 @@ function void Reset(Memory_Arena *arena, b32 release) {
     }
 }
 
+function void RemoveSize(Memory_Arena *arena, uptr size) {
+    if (arena->used >= size) {
+        arena->used -= size;
+    }
+}
+
 function uptr GetAlignmentOffset(Memory_Arena *arena, uptr alignment) {
     uptr result = 0;
 
