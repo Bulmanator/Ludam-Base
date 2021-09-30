@@ -88,4 +88,15 @@ struct Renderer_Buffer {
     u32   num_immediate_indices;
 };
 
+union Texture_Handle {
+    struct {
+        u32 index;
+
+        u16 width;
+        u16 height;
+    };
+
+    u64 value;
+};
+
 #endif  // BASE_RENDERER_H_

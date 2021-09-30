@@ -21,6 +21,18 @@ struct Draw_Batch {
     Render_Command_Quad_Batch *quad_batch;
 };
 
+struct Sprite_Animation {
+    Image_Handle image;
+
+    f32 time;
+    f32 time_per_frame;
+
+    u32 rows;
+    u32 cols;
+
+    u32 current_frame;
+};
+
 // Checks if the result of loading a renderer has been initialised correctly and is ready for use
 //
 function b32 IsValid(Renderer_Context *renderer);
@@ -57,5 +69,14 @@ function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour = V4
 //
 function void DrawCircle(Draw_Batch *batch, v3 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), u32 segments = 100);
 function void DrawCircle(Draw_Batch *batch, v2 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), u32 segments = 100);
+
+// Animation functions
+//
+function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, f32 time_per_frame = 0.05f);
+
+function void UpdateAnimation(Sprite_Animation *animation, f32 dt);
+
+function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v3 centre, v2 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v2 centre, v2 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 
 #endif  // BASE_DRAW_H_

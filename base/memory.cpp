@@ -82,6 +82,13 @@ function void *__AllocSize(Memory_Arena *arena, uptr size, u32 flags = 0, uptr a
     return result;
 }
 
+function void *__AllocCopy(Memory_Arena *arena, uptr size, void *src, u32 flags = 0, uptr alignment = 4) {
+    void *result = __AllocSize(arena, size, flags, alignment);
+    CopySize(result, src, size);
+
+    return result;
+}
+
 function void *__AllocInline(Memory_Allocator *alloc, uptr size, uptr type_size, uptr arena_offset) {
     void *result = 0;
 

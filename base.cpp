@@ -12,3 +12,6 @@
 #include "base/input.cpp"
 
 #include "base/draw.cpp"
+#include "base/assets.cpp"
+
+#include "base/audio.cpp"

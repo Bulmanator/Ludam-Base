@@ -74,6 +74,8 @@ function void RemoveSize(Memory_Arena *arena, uptr size);
 #define AllocType(arena, T, ...) (T *) __AllocSize(arena, sizeof(T), ##__VA_ARGS__)
 #define AllocArray(arena, T, count, ...) (T *) __AllocSize(arena, (count) * sizeof(T), ##__VA_ARGS__)
 
+#define AllocCopy(arena, T, src, ...) (T *) __AllocCopy(arena, sizeof(T), (void *) src, ##__VA_ARGS__)
+
 // This will allocate a structure containing an arena within its own arena and return the pointer to that
 // allocated structure to you. size is the max size of the arena
 //

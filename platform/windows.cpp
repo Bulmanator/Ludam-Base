@@ -568,6 +568,51 @@ function void WindowsInitialiseThreadContext(Thread_Context *tctx) {
     }
 }
 
+function void WindowsInitialiseAudio() {
+    REFERENCE_TIME duration = cast(REFERENCE_TIME) (0.10 * REFTIMES_PER_SEC); // 100ms of latency
+
+    IMMDeviceEnumerator *enumerator = 0;
+
+    HRESULT hr = CoCreateInstance(CLSID_MMDeviceEnumerator, 0, CLSCTX_ALL, IID_IMMDeviceEnumerator, cast(void **) &enumerator);
+    if (FAILED(hr)) { return; }
+
+    IAudioClient *audio_client = 0;
+    IMMDevice *device = 0;
+
+    hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+    if (FAILED(hr)) { return; }
+
+    hr = device->Activate(IID_IAudioClient, CLSCTX_ALL, 0, cast(void **) &audio_client);
+    if (FAILED(hr)) { return; }
+
+    WAVEFORMATEX wav_format = {};
+    wav_format.wFormatTag      = WAVE_FORMAT_PCM;
+    wav_format.nChannels       = 2;
+    wav_format.nSamplesPerSec  = 48000;
+    wav_format.wBitsPerSample  = 16;
+    wav_format.nBlockAlign     = (wav_format.wBitsPerSample * wav_format.nChannels) / 8;
+    wav_format.nAvgBytesPerSec = wav_format.nBlockAlign * wav_format.nSamplesPerSec;
+    wav_format.cbSize          = 0;
+
+    hr = audio_client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, duration, 0, &wav_format, 0);
+    if (FAILED(hr)) { return; }
+
+    u32 audio_frame_count = 0;
+    hr = audio_client->GetBufferSize(&audio_frame_count);
+    if (FAILED(hr)) { return; }
+
+    IAudioRenderClient *audio_renderer = 0;
+    hr = audio_client->GetService(IID_IAudioRenderClient, cast(void **) &audio_renderer);
+    if (FAILED(hr)) { return; }
+
+    hr = audio_client->Start();
+    if (FAILED(hr)) { return; }
+
+    windows_context->audio_client      = audio_client;
+    windows_context->audio_renderer    = audio_renderer;
+    windows_context->audio_frame_count = audio_frame_count;
+}
+
 function b32 WindowsInitialise(Windows_Parameters *params) {
     b32 result = false;
 
@@ -577,11 +622,7 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
     SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
     b32 open_window  = (params->init_flags & PlatformInit_OpenWindow);
-
-    // @Todo: Enable audio
-    //
     b32 enable_audio = (params->init_flags & PlatformInit_EnableAudio);
-    (void) enable_audio;
 
     Memory_Allocator alloc;
     alloc.context  = 0;
@@ -688,6 +729,10 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
         ShowWindow(windows_context->window, params->show_cmd);
     }
 
+    if (enable_audio) {
+        WindowsInitialiseAudio();
+    }
+
     windows_context->running = true;
 
     result = true;
@@ -764,4 +809,38 @@ function v2u WindowsGetWindowDim() {
     }
 
     return result;
+}
+
+function b32 WindowsGetAudioBuffer(Audio_Buffer *buffer) {
+    b32 result = false;
+
+    IAudioClient *audio_client = windows_context->audio_client;
+    IAudioRenderClient *audio_renderer = windows_context->audio_renderer;
+
+    if (!audio_client || !audio_renderer) { return result; }
+
+    u32 padding = 0;
+    HRESULT hr = audio_client->GetCurrentPadding(&padding);
+    if (FAILED(hr)) { return result; }
+
+    u32 audio_frames = windows_context->audio_frame_count - padding;
+
+    u8 *buffer_data = 0;
+    hr = audio_renderer->GetBuffer(audio_frames, &buffer_data);
+    if (FAILED(hr)) { return result; }
+
+    buffer->samples      = cast(s16 *) buffer_data;
+    buffer->sample_count = audio_frames;
+
+    result = true;
+    return result;
+}
+
+function void WindowsSubmitAudioBuffer(Audio_Buffer *buffer) {
+    IAudioClient *audio_client = windows_context->audio_client;
+    IAudioRenderClient *audio_renderer = windows_context->audio_renderer;
+
+    if (!audio_client || !audio_renderer) { return; }
+
+    audio_renderer->ReleaseBuffer(buffer->sample_count, 0);
 }

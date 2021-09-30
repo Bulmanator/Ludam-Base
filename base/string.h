@@ -8,6 +8,7 @@
 // @Temp: This is here until we implement our own format string routine
 //
 #include <stdio.h>
+#include <stdarg.h>
 
 #define function static
 

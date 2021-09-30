@@ -11,7 +11,20 @@
 #include <shlobj.h>
 #include <pathcch.h>
 
+#include <MMDeviceAPI.h>
+#include <AudioClient.h>
+
 #define function static
+
+// For WASAPI
+//
+const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
+const IID   IID_IMMDeviceEnumerator  = __uuidof(IMMDeviceEnumerator);
+const IID   IID_IAudioClient         = __uuidof(IAudioClient);
+const IID   IID_IAudioRenderClient   = __uuidof(IAudioRenderClient);
+
+#define REFTIMES_PER_SEC      (10000000)
+#define REFTIMES_PER_MILLISEC (10000)
 
 struct Windows_Context {
     Platform_Context platform; // This _must_ remain at the top of this structure
@@ -35,6 +48,12 @@ struct Windows_Context {
     v2u window_dim;
 
     HMODULE renderer_dll;
+
+    // WASAPI
+    //
+    IAudioClient *audio_client;
+    IAudioRenderClient *audio_renderer;
+    u32 audio_frame_count;
 
     str8 exe_path;
     str8 user_path;
@@ -79,5 +98,13 @@ function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params);
 // Get the current size of the window
 //
 function v2u WindowsGetWindowDim();
+
+// Fill out the audio buffer with the correct data to output to WASAPI
+//
+function b32 WindowsGetAudioBuffer(Audio_Buffer *buffer);
+
+// Submit a mixed audio buffer to WASAPI for playback
+//
+function void WindowsSubmitAudioBuffer(Audio_Buffer *buffer);
 
 #endif  // PLATFORM_WINDOWS_H_

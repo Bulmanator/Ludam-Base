@@ -12,6 +12,12 @@
 #include "base/input.h"
 
 #include "base/renderer.h"
+
+#include "base/amt.h"
+#include "base/assets.h"
+
 #include "base/draw.h"
+
+#include "base/audio.h"
 
 #endif  // BASE_H_
