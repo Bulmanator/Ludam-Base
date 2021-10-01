@@ -16,6 +16,14 @@
 
 #define function static
 
+#if defined(LoadImage)
+#    undef LoadImage
+#endif
+
+#if defined(PlaySound)
+#    undef PlaySound
+#endif
+
 // For WASAPI
 //
 const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
