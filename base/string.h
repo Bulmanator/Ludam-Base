@@ -43,6 +43,7 @@ function str8 FormatStr(str8 buffer, const char *format, ...);
 // Make a copy of the string that is null-terminated
 //
 function const char *CopyZ(Memory_Arena *arena, str8 str);
+function str8 CopyStr(Memory_Arena *arena, str8 str);
 
 enum String_Compare_Flags {
     StringCompare_NoCase = (1 << 0),

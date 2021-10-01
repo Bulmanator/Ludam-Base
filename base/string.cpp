@@ -171,6 +171,16 @@ function const char *CopyZ(Memory_Arena *arena, str8 str) {
     return result;
 }
 
+function str8 CopyStr(Memory_Arena *arena, str8 str) {
+    str8 result;
+    result.count = str.count;
+    result.data  = AllocArray(arena, u8, result.count);
+
+    CopySize(result.data, str.data, result.count);
+
+    return result;
+}
+
 function b32 StringsEqual(str8 a, str8 b, u32 flags) {
     b32 result = (a.count == b.count);
     if (result) {

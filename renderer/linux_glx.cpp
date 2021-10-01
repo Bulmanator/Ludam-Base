@@ -68,16 +68,29 @@ function b32 GLXInitialise(OpenGL_Context *gl, Display *display, Window window) 
         extensions = Advance(extensions, extension.count + 1);
     }
 
-    int attrib_count = 22;
+    // @Todo: This is such a mess. The official Nvidia drivers break completley when passing the colour sizes as
+    // frambuffer attributes. It searches and finds framebuffer configs just fine, it loads the context create function and
+    // even makes the context with these framebuffer configurations but as soon as it tries to make the context current it
+    // throws a BadMatch error and crashes the program without recovery.
+    //
+    // I don't really have the will or paitence to deal with this right now so I am just going
+    // to exclude the colour sizes from the attributes
+    //
+    // Works fine with the colour sizes on nouveau
+    //
+
+    int attrib_count = 16;
     int framebuffer_attrs[32] = {
         GLX_X_RENDERABLE,  True,
         GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
         GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
         GLX_RENDER_TYPE,   GLX_RGBA_BIT,
+#if 0
         GLX_RED_SIZE,      8,
         GLX_BLUE_SIZE,     8,
         GLX_GREEN_SIZE,    8,
         GLX_ALPHA_SIZE,    8,
+#endif
         GLX_DEPTH_SIZE,    24,
         GLX_STENCIL_SIZE,  8,
         GLX_DOUBLEBUFFER,  True,
@@ -112,7 +125,11 @@ function b32 GLXInitialise(OpenGL_Context *gl, Display *display, Window window) 
             // @Hack: There are legitimatly drivers that _say_ they support GLX_ARB_framebuffer_sRGB or
             // GLX_EXT_framebuffer_sRGB, but then when you go to actually request an sRGB framebuffer it doesn't
             // find any valid configurations. So if it fails and we find that sRGB is supposed to be supported
-            // but failed then disable it
+            // but failed then disable it.
+            //
+            // Buuuuutttt, don't actually disable (i.e. don't set gl->info.srgb_supported to false) beacause
+            // even though when you request it to be there and it fails to find a config just enabling
+            // GL_FRAMEBUFFER_SRGB works fine showing that IT GAVE YOU AN sRGB FRAMEBUFFER ANYWAY..........
             //
             framebuffer_attrs[attrib_count - 2] = 0;
 

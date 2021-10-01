@@ -46,6 +46,235 @@ function PLATFORM_GET_THREAD_CONTEXT(LinuxGetThreadContext) {
     return result;
 }
 
+function PLATFORM_GET_PATH(LinuxGetPath) {
+    str8 result = {};
+
+    Scratch_Memory scratch = GetScratch();
+
+    switch (path) {
+        case PlatformPath_Executable: {
+            if (!IsValid(linux_context->exe_path)) {
+                str8 path;
+                path.count = 4096;
+
+                while (true) {
+                    path.data  = AllocArray(scratch.arena, u8, path.count);
+
+                    sptr count = readlink("/proc/self/exe", cast(char *) path.data, path.count);
+                    if (count < 0) { return result; }
+
+                    if (cast(uptr) count < path.count) {
+                        path.count = count;
+                        break;
+                    }
+
+                    path.count *= 2;
+                }
+
+                uptr last = 0;
+                for (uptr it = 0; it < path.count; ++it) {
+                    if (path.data[it] == '/') { last = it; }
+                }
+
+                path.count = last;
+
+                linux_context->exe_path = CopyStr(&linux_context->arena, path);
+            }
+
+            result = linux_context->exe_path;
+        }
+        break;
+
+        case PlatformPath_User: {
+            if (!IsValid(linux_context->user_path)) {
+                const char *home = getenv("HOME");
+                if (!home) { return result; }
+
+                str8 ametentia_dir = FormatStr(scratch.arena, "%s/.local/share/ametentia", home);
+                str8 path = FormatStr(scratch.arena, "%s/.local/share/ametentia/ludum dare", home);
+
+                char *check = cast(char *) ametentia_dir.data;
+
+                struct stat info;
+                if (stat(check, &info) != 0) {
+                    mkdir(check, 0755);
+                }
+                else if (!S_ISDIR(info.st_mode)) {
+                    return result;
+                }
+
+                check = cast(char *) path.data;
+                if (stat(check, &info) != 0) {
+                    mkdir(check, 0755);
+                }
+                else if (!S_ISDIR(info.st_mode)) {
+                    return result;
+                }
+
+                linux_context->user_path = CopyStr(&linux_context->arena, path);
+            }
+
+            result = linux_context->user_path;
+        }
+        break;
+
+        case PlatformPath_Working: {
+            if (!IsValid(linux_context->working_path)) {
+                str8 path;
+                path.count = 4096;
+                path.data  = AllocArray(scratch.arena, u8, path.count);
+
+                while (!getcwd(cast(char *) path.data, path.count)) {
+                    if (errno != ERANGE) {  return result; }
+
+                    path.count *= 2;
+                    path.data   = AllocArray(scratch.arena, u8, path.count);
+                }
+
+                linux_context->working_path = CopyStr(&linux_context->arena, path);
+            }
+
+            result = linux_context->working_path;
+        }
+        break;
+    }
+
+    return result;
+}
+
+function PLATFORM_LIST_PATH(LinuxListPath) {
+    Path_List result = {};
+
+    Scratch_Memory scratch = GetScratch(&arena, 1);
+
+    const char *zpath = CopyZ(scratch.arena, path);
+
+    DIR *dir = opendir(zpath);
+    if (!dir) { return result; }
+
+    for (struct dirent *it = readdir(dir); it != 0; it = readdir(dir)) {
+        char *filename = it->d_name;
+
+        // Ignore relative path entries
+        //
+        if (filename[0] == '.' && filename[1] == 0) { continue; }
+        if (filename[0] == '.' && filename[1] == '.' && filename[2] == 0) { continue; }
+
+        Path_Entry_Type type;
+        if (it->d_type == DT_REG) {
+            type = PathEntry_File;
+        }
+        else if (it->d_type == DT_DIR) {
+            type = PathEntry_Directory;
+        }
+        else {
+            continue;
+        }
+
+        Path_Entry *entry = AllocType(arena, Path_Entry);
+
+        entry->type      = type;
+
+        entry->basename  = CopyStr(arena, WrapZ(filename));
+        entry->full_path = FormatStr(arena, "%.*s/%.*s", path, entry->basename);
+
+        // @Leak: This leaks a bit of memory for the names and path entry if this fails
+        //
+        struct stat info;
+        if (stat(cast(char *) entry->full_path.data, &info) != 0) { continue; }
+
+        entry->size = info.st_size;
+        entry->time = (info.st_mtim.tv_sec * 1000000000) + info.st_mtim.tv_nsec;
+
+        entry->next = 0;
+
+        if (!result.first) {
+            result.first = entry;
+            result.last  = entry;
+        }
+        else {
+            result.last->next = entry;
+            result.last       = entry;
+        }
+
+        result.entry_count += 1;
+    }
+
+    return result;
+}
+
+function PLATFORM_OPEN_FILE(LinuxOpenFile) {
+    File_Handle result = {};
+
+    u32 open_mode = 0;
+    u32 mode      = 0644;
+
+    if (access_flags & FileAccess_Read) {
+        open_mode = O_RDONLY;
+    }
+
+    if (access_flags & FileAccess_Write) {
+        if (open_mode == O_RDONLY) {
+            open_mode = O_RDWR;
+        }
+        else {
+            open_mode = O_WRONLY;
+        }
+
+        open_mode |= O_CREAT;
+    }
+
+    Scratch_Memory scratch = GetScratch();
+
+    const char *zpath = CopyZ(scratch.arena, path);
+
+    int fd = open(zpath, open_mode, mode);
+    if (fd < 0) {
+        result.errors = true;
+    }
+    else {
+        *cast(int *) &result.platform = fd;
+    }
+
+    return result;
+}
+
+function PLATFORM_CLOSE_FILE(LinuxCloseFile) {
+    int fd = *cast(int *) &handle->platform;
+    if (fd > 2) {
+        close(fd);
+    }
+
+    handle->platform = 0;
+    handle->errors   = true;
+}
+
+function PLATFORM_ACCESS_FILE(LinuxReadFile) {
+    if (handle->errors) { return; }
+
+    int fd = *cast(int *) &handle->platform;
+
+    lseek(fd, offset, SEEK_SET);
+
+    sptr success = read(fd, data, size);
+    if (success < 0 || cast(uptr) success != size) {
+        handle->errors = true;
+    }
+}
+
+function PLATFORM_ACCESS_FILE(LinuxWriteFile) {
+    if (handle->errors) { return; }
+
+    int fd = *cast(int *) &handle->platform;
+
+    lseek(fd, offset, SEEK_SET);
+
+    sptr success = write(fd, data, size);
+    if (success < 0 || cast(uptr) success != size) {
+        handle->errors = true;
+    }
+}
+
 // Input handling
 //
 function u64 LinuxGetTicks() {
@@ -283,6 +512,24 @@ function b32 LinuxLoadXlibFunctions(Xlib_Context *xlib) {
     return result;
 }
 
+function b32 LinuxLoadPASimpleFunctions(Pulse_Context *pa) {
+    b32 result = false;
+
+    pa->so_handle = dlopen("libpulse-simple.so", RTLD_NOW);
+    if (!pa->so_handle) { return result; }
+
+#define PA_LOAD_FUNCTION(name) pa->_##name = (type_##name *) dlsym(pa->so_handle, #name); do { if (!pa->_##name) { return result; } } while (0)
+    PA_LOAD_FUNCTION(pa_simple_new);
+    PA_LOAD_FUNCTION(pa_simple_free);
+    PA_LOAD_FUNCTION(pa_simple_write);
+    PA_LOAD_FUNCTION(pa_simple_get_latency);
+    PA_LOAD_FUNCTION(pa_simple_flush);
+#undef PA_LOAD_FUNCTION
+
+    result = true;
+    return result;
+}
+
 function b32 LinuxInitialise(Linux_Parameters *params) {
     b32 result = false;
 
@@ -305,6 +552,15 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
     Platform->GetMemoryAllocator = LinuxGetMemoryAllocator;
     Platform->GetThreadContext   = LinuxGetThreadContext;
 
+    Platform->GetPath  = LinuxGetPath;
+    Platform->ListPath = LinuxListPath;
+
+    Platform->OpenFile  = LinuxOpenFile;
+    Platform->CloseFile = LinuxCloseFile;
+
+    Platform->ReadFile  = LinuxReadFile;
+    Platform->WriteFile = LinuxWriteFile;
+
     linux_context->arena.alloc = Platform->GetMemoryAllocator();
 
     linux_context->last_time = 0;
@@ -319,9 +575,10 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
     LinuxInitialiseThreadContext(&linux_context->thread_contexts[0]);
     pthread_setspecific(linux_context->tls_handle, cast(void *) &linux_context->thread_contexts[0]);
 
-    if (open_window) {
-        Scratch_Memory scratch = GetScratch();
+    Scratch_Memory scratch = GetScratch();
+    const char *window_name = CopyZ(scratch.arena, params->window_title);
 
+    if (open_window) {
         Xlib_Context *xlib = &linux_context->xlib;
         if (!LinuxLoadXlibFunctions(xlib)) { return result; }
 
@@ -348,12 +605,32 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
         Atom client_events[] = { xlib->closed };
         XSetWMProtocols(xlib->display, xlib->window, client_events, ArraySize(client_events));
 
-        const char *window_name = CopyZ(scratch.arena, params->window_title);
         XStoreName(xlib->display, xlib->window, window_name);
 
         XMapWindow(xlib->display, xlib->window);
 
         linux_context->window_dim = params->window_dim;
+    }
+
+    if (enable_audio) {
+        Pulse_Context *pa = &linux_context->pa;
+        if (LinuxLoadPASimpleFunctions(pa)) {
+            pa->channel_count = 2;
+            pa->sample_rate   = 48000;
+
+            pa->max_audio_frames = 800;
+
+            pa->sample_buffer    = AllocArray(&linux_context->arena, s16, pa->channel_count * pa->max_audio_frames);
+
+            pa_sample_spec spec = {};
+            spec.format   = PA_SAMPLE_S16LE;
+            spec.channels = pa->channel_count;
+            spec.rate     = pa->sample_rate;
+
+            pa->handle = pa_simple_new(0, window_name, PA_STREAM_PLAYBACK, 0, "Game Audio", &spec, 0, 0, 0);
+        }
+
+        pa->enabled = (pa->handle != 0);
     }
 
     linux_context->running = true;
@@ -391,3 +668,22 @@ function v2u LinuxGetWindowDim() {
     return result;
 }
 
+// This setup "works" for me. It will only work properly at 60hz.
+//
+// @Todo: Use a different audio api, all of them are awful anyway
+//
+function void LinuxGetAudioBuffer(Audio_Buffer *buffer) {
+    Pulse_Context *pa = &linux_context->pa;
+    if (!pa->enabled) { return; }
+
+    buffer->samples      = pa->sample_buffer;
+    buffer->sample_count = pa->max_audio_frames;
+}
+
+function void LinuxSubmitAudioBuffer(Audio_Buffer *buffer) {
+    Pulse_Context *pa = &linux_context->pa;
+    if (!pa->enabled) { return; }
+    if (!buffer->sample_count) { return; }
+
+    pa_simple_write(pa->handle, buffer->samples, buffer->sample_count * pa->channel_count * sizeof(s16), 0);
+}
