@@ -178,6 +178,29 @@ function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, v2 dim,
     DrawQuad(batch, image, V3(centre), dim, angle, colour);
 }
 
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, f32 scale, f32 angle, v4 colour) {
+    Amt_Image *image_info = GetImageInfo(batch->assets, image);
+    if (!image_info) { return; }
+
+    v2 dim = V2(image_info->width, image_info->height);
+    if (dim.w > dim.h) {
+        dim.h = dim.h / dim.w;
+        dim.w = 1;
+    }
+    else {
+        dim.w = dim.w / dim.h;
+        dim.h = 1;
+    }
+
+    dim *= scale;
+
+    DrawQuad(batch, image, centre, dim, angle, colour);
+}
+
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, f32 scale, f32 angle, v4 colour) {
+    DrawQuad(batch, image, V3(centre), scale, angle, colour);
+}
+
 function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle, v4 colour, f32 thickness) {
     v2 half_dim = 0.5f * dim;
     v2 rot      = Arm2(angle);
@@ -246,6 +269,7 @@ function void UpdateAnimation(Sprite_Animation *animation, f32 dt) {
 
 function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v3 centre, v2 scale, f32 angle, v4 colour) {
     Amt_Image *image_info = GetImageInfo(batch->assets, animation->image);
+    if (!image_info) { return; }
 
     v2 dim = V2(image_info->width / cast(f32) animation->cols, image_info->height / cast(f32) animation->rows);
     if (dim.w > dim.h) {

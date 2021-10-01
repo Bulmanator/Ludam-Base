@@ -71,6 +71,64 @@ function b32 IsZero(f64 x) {
     return result;
 }
 
+// Random functions
+//
+function Random RandomSeed(u64 seed) {
+    Random result = {};
+    result.state  = seed;
+
+    return result;
+}
+
+function u64 NextRandom(Random *r) {
+    u64 result = r->state;
+    result ^= (result << 13);
+    result ^= (result >>  7);
+    result ^= (result << 17);
+
+    return result;
+}
+
+function f32 RandomUnilateral(Random *r) {
+    f32 result = NextRandom(r) / cast(f32) U64_MAX;
+    return result;
+}
+
+function f32 RandomBilateral(Random *r) {
+    f32 result = -1.0f + (2.0f * RandomUnilateral(r));
+    return result;
+}
+
+function f32 RandomF32(Random *r, f32 min, f32 max) {
+    f32 result = Lerp(min, max, RandomUnilateral(r));
+    return result;
+}
+
+function f64 RandomF64(Random *r, f64 min, f64 max) {
+    f64 result = Lerp(min, max, cast(f64) RandomUnilateral(r));
+    return result;
+}
+
+function s32 RandomS32(Random *r, s32 min, s32 max) {
+    s32 result = cast(s32) Lerp(cast(f32) min, cast(f32) max, RandomUnilateral(r));
+    return result;
+}
+
+function s64 RandomS64(Random *r, s64 min, s64 max) {
+    s64 result = cast(s64) Lerp(cast(f64) min, cast(f64) max, cast(f64) RandomUnilateral(r));
+    return result;
+}
+
+function u32 RandomU32(Random *r, u32 min, u32 max) {
+    u32 result = cast(u32) Lerp(cast(f32) min, cast(f32) max, RandomUnilateral(r));
+    return result;
+}
+
+function u64 RandomU64(Random *r, u64 min, u64 max) {
+    u64 result = cast(u64) Lerp(cast(f64) min, cast(f64) max, cast(f64) RandomUnilateral(r));
+    return result;
+}
+
 function u32 ABGRPack(v4 colour) {
     u32 result =
         ((cast(u8) (255.0f * colour.a)) << 24) |

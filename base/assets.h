@@ -57,6 +57,11 @@ struct Asset_Manager {
     Asset_Hash *hash_slots[256];
 };
 
+// Validity tests for asset handles
+//
+function b32 IsValid(Image_Handle handle);
+function b32 IsValid(Sound_Handle handle);
+
 // Initialise the asset manager
 //
 function void Initialise(Asset_Manager *assets, Memory_Arena *arena, Texture_Transfer_Queue *texture_queue, u32 default_texture_flags = 0);

@@ -62,6 +62,9 @@ function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 v
 function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, f32 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, f32 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+
 // Quad outlines
 //
 function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);

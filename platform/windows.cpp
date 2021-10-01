@@ -394,6 +394,7 @@ function Key_Code WindowsTranslateVirtualKey(WPARAM wparam) {
         switch (wparam) {
             // Punctuation
             //
+            case VK_SPACE:      { result = Key_Space;        } break;
             case VK_OEM_PLUS:   { result = Key_Equals;       } break;
             case VK_OEM_MINUS:  { result = Key_Minus;        } break;
             case VK_OEM_COMMA:  { result = Key_Comma;        } break;
@@ -421,6 +422,11 @@ function Key_Code WindowsTranslateVirtualKey(WPARAM wparam) {
             // but it shows up as the 'grave' key (next to 1) on my GB layout keyboard
             //
             case VK_OEM_8:      { result = Key_Grave;        } break;
+
+            case VK_UP:    { result = Key_Up;    } break;
+            case VK_DOWN:  { result = Key_Down;  } break;
+            case VK_LEFT:  { result = Key_Left;  } break;
+            case VK_RIGHT: { result = Key_Right; } break;
 
             // Other keys
             //

@@ -78,6 +78,16 @@ function void AddHashLookupForAsset(Asset_Manager *assets, u32 index, str8 name)
     assets->hash_slots[hash_index] = asset_hash;
 }
 
+function b32 IsValid(Image_Handle handle) {
+    b32 result = (handle.value != 0);
+    return result;
+}
+
+function b32 IsValid(Sound_Handle handle) {
+    b32 result = (handle.value != 0);
+    return result;
+}
+
 function void Initialise(Asset_Manager *assets, Memory_Arena *arena, Texture_Transfer_Queue *texture_queue, u32 default_texture_flags) {
     Scratch_Memory scratch = GetScratch();
     assets->arena = arena;

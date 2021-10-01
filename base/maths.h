@@ -3,6 +3,12 @@
 
 #include <math.h>
 
+// Random number generator
+//
+struct Random {
+    u64 state;
+};
+
 // Utility macros
 //
 #define Pi32  (3.141592653589793238462643383279502884197169399f)
@@ -32,6 +38,22 @@ function f64 Epsilon64(f32 value = 1.0);
 
 function b32 IsZero(f32 x);
 function b32 IsZero(f64 x);
+
+// Random functions
+//
+function Random RandomSeed(u64 seed);
+
+function f32 RandomUnilateral(Random *r);
+function f32 RandomBilateral(Random *r);
+
+function f32 RandomF32(Random *r, f32 min, f32 max);
+function f64 RandomF64(Random *r, f64 min, f64 max);
+
+function s32 RandomS32(Random *r, s32 min, s32 max);
+function s64 RandomS64(Random *r, s64 min, s64 max);
+
+function u32 RandomU32(Random *r, u32 min, u32 max);
+function u64 RandomU64(Random *r, u64 min, u64 max);
 
 // Other utlities
 //

@@ -19,8 +19,9 @@ function void MixPlayingSounds(Audio_State *state, Asset_Manager *assets, Audio_
         Playing_Sound *next = sound->next;
 
         Amt_Sound *info = GetSoundInfo(assets, sound->handle);
-        s16 *samples    = GetSoundData(assets, sound->handle);
+        if (!info) { StopSound(state, sound); }
 
+        s16 *samples     = GetSoundData(assets, sound->handle);
         u32 sample_count = Min(buffer->sample_count, info->sample_count - sound->samples_played);
 
         // @Todo: This is offset by 2 * sound->samples_played because there are two channels and we leave
@@ -58,6 +59,9 @@ function void MixPlayingSounds(Audio_State *state, Asset_Manager *assets, Audio_
 
 function Playing_Sound *PlaySound(Audio_State *state, Sound_Handle handle, u32 flags, v2 volume) {
     Playing_Sound *result = 0;
+
+    if (!IsValid(handle)) { return result; }
+
     if (state->free) {
         result = state->free;
         state->free = result->next;
