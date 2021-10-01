@@ -49,6 +49,7 @@ enum Key_Code {
 
     // Punctuation
     //
+    Key(Space),
     Key(Grave),
     Key(Minus),
     Key(Equals),
@@ -79,6 +80,13 @@ enum Key_Code {
     Key(F11),
     Key(F12),
 
+    // Arrow keys
+    //
+    Key(Up),
+    Key(Down),
+    Key(Left),
+    Key(Right),
+
      // Other keys
      //
      Key(Shift),
@@ -95,7 +103,9 @@ enum Key_Code {
 };
 
 enum Mouse_Button {
-    Mouse_Left = 0,
+    Mouse_Unknown = -1,
+
+    Mouse_Left,
     Mouse_Middle,
     Mouse_Right,
     Mouse_X1,
