@@ -262,6 +262,7 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     WGL_LOAD_FUNCTION(glUseProgram);
     WGL_LOAD_FUNCTION(glUniformMatrix4fv);
     WGL_LOAD_FUNCTION(glDrawElementsBaseVertex);
+    WGL_LOAD_FUNCTION(glGenerateMipmap);
 
     WGL_LOAD_FUNCTION(glMapBuffer);
 

@@ -61,12 +61,37 @@ function b32 OpenGLInitialise(OpenGL_Context *gl, Renderer_Parameters *params) {
     command_buffer->max_immediate_indices  = max_immediate_indices;
     command_buffer->num_immediate_indices  = 0;
 
-    u8 white_pixel[] = { 0xFF, 0xFF, 0xFF, 0xFF };
+    // Setup texture transfer queue
+    //
+    Texture_Transfer_Queue *texture_queue = &gl->renderer.texture_queue;
 
-    glGenTextures(1, &gl->white_texture);
+    texture_queue->transfer_count = 0;
 
-    glBindTexture(GL_TEXTURE_2D, gl->white_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, gl->texture_format, 1, 1, 0, GL_BGRA, GL_UNSIGNED_BYTE, white_pixel);
+    texture_queue->transfer_size = params->texture_queue_size;
+    texture_queue->transfer_used = 0;
+    texture_queue->transfer_base = AllocArray(&gl->arena, u8, texture_queue->transfer_size);
+
+    // Setup and generate texture handles
+    //
+    gl->max_texture_handles = params->max_texture_handles;
+    gl->texture_handles     = AllocArray(&gl->arena, GLuint, gl->max_texture_handles);
+
+    glGenTextures(gl->max_texture_handles, gl->texture_handles);
+
+    // Create the default texture to be an error checkerboard pattern that is black and magenta for easy
+    // visual error checking
+    //
+    u32 error_checkerboard[] = {
+        0xFF00FFFF,
+        0xFF000000,
+        0xFF00FFFF,
+        0xFF000000
+    };
+
+    glGenTextures(1, &gl->err_texture_handle);
+
+    glBindTexture(GL_TEXTURE_2D, gl->err_texture_handle);
+    glTexImage2D(GL_TEXTURE_2D, 0, gl->texture_format, 2, 2, 0, GL_BGRA, GL_UNSIGNED_BYTE, error_checkerboard);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -217,6 +242,8 @@ function Renderer_Buffer *OpenGLBeginFrame(OpenGL_Context *gl, v2u window_dim, r
 function void OpenGLSubmitFrame(OpenGL_Context *gl) {
     Renderer_Buffer *buffer = &gl->command_buffer;
 
+    OpenGLTransferTextures(gl, &gl->renderer.texture_queue);
+
     glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
     glUnmapBuffer(GL_ARRAY_BUFFER);
 
@@ -249,7 +276,8 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl) {
             case RenderCommand_Render_Command_Quad_Batch: {
                 Render_Command_Quad_Batch *quad_batch = cast(Render_Command_Quad_Batch *) (buffer->buffer_base + offset);
 
-                glBindTexture(GL_TEXTURE_2D, gl->white_texture);
+                GLuint texture_handle = OpenGLGetTextureHandle(gl, quad_batch->texture);
+                glBindTexture(GL_TEXTURE_2D, texture_handle);
 
                 void *index_offset = cast(void *) (quad_batch->index_offset * sizeof(u16));
                 glDrawElementsBaseVertex(GL_TRIANGLES, quad_batch->index_count, GL_UNSIGNED_SHORT, index_offset, quad_batch->vertex_offset);
@@ -259,4 +287,43 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl) {
             break;
         }
     }
+}
+
+function GLuint OpenGLGetTextureHandle(OpenGL_Context *gl, Texture_Handle handle) {
+    GLuint result = 0;
+    if (handle.index < gl->max_texture_handles) {
+        result = gl->texture_handles[handle.index];
+    }
+    else {
+        // Get error texture as we have an out of bounds texture
+        //
+        result = gl->err_texture_handle;
+    }
+
+    return result;
+}
+
+function void OpenGLTransferTextures(OpenGL_Context *gl, Texture_Transfer_Queue *texture_queue) {
+    for (u32 it = 0; it < texture_queue->transfer_count; ++it) {
+        Texture_Transfer_Info *info = &texture_queue->transfer_info[it];
+
+        b32 filtered = (info->flags & TextureFlag_Filtered);
+        b32 clamped  = (info->flags & TextureFlag_Clamped);
+
+        Texture_Handle handle = info->handle;
+        GLuint texture_handle = OpenGLGetTextureHandle(gl, handle);
+        glBindTexture(GL_TEXTURE_2D, texture_handle);
+        glTexImage2D(GL_TEXTURE_2D, 0, gl->texture_format, handle.width, handle.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, info->data);
+
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtered ? GL_LINEAR : GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtered ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_LINEAR);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamped ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamped ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+    }
+
+    texture_queue->transfer_count = 0;
+    texture_queue->transfer_used  = 0;
 }

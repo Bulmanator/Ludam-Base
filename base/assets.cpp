@@ -1,3 +1,33 @@
+function Texture_Handle CreateTextureHandle(u32 index, u32 width, u32 height) {
+    Texture_Handle result;
+    result.index  = index;
+    result.width  = cast(u16) width;
+    result.height = cast(u16) height;
+
+    return result;
+}
+
+function u8 *GetTextureTransferMemory(Texture_Transfer_Queue *texture_queue, Texture_Handle handle, u32 flags) {
+    u8 *result = 0;
+    if (texture_queue->transfer_count < ArraySize(texture_queue->transfer_info)) {
+        uptr data_size = (4 * handle.width * handle.height);
+        if ((texture_queue->transfer_used + data_size) > texture_queue->transfer_size) { return result; }
+
+        result = texture_queue->transfer_base + texture_queue->transfer_used;
+
+        Texture_Transfer_Info *info = &texture_queue->transfer_info[texture_queue->transfer_count];
+        texture_queue->transfer_count += 1;
+
+        info->handle = handle;
+        info->flags  = flags;
+        info->data   = result;
+
+        texture_queue->transfer_used += data_size;
+    }
+
+    return result;
+}
+
 function u64 Hash64(str8 str) {
     u64 result = 5381;
     for (uptr it = 0; it < str.count; ++it) {
@@ -48,14 +78,18 @@ function void AddHashLookupForAsset(Asset_Manager *assets, u32 index, str8 name)
     assets->hash_slots[hash_index] = asset_hash;
 }
 
-function void Initialise(Asset_Manager *assets, Memory_Arena *arena) {
+function void Initialise(Asset_Manager *assets, Memory_Arena *arena, Texture_Transfer_Queue *texture_queue, u32 default_texture_flags) {
     Scratch_Memory scratch = GetScratch();
     assets->arena = arena;
+
+    assets->texture_queue = texture_queue;
+    assets->default_texture_flags = default_texture_flags;
 
     str8 exe_path  = Platform->GetPath(PlatformPath_Executable);
     str8 data_path = FormatStr(scratch.arena, "%.*s/%s", str8_unpack(exe_path), "data");
 
-    assets->file_count = 0;
+    assets->asset_count = 1;
+    assets->file_count  = 0;
 
     Path_List list = Platform->ListPath(scratch.arena, data_path);
     Path_List amt_list = GetAmtFileList(&list, scratch.arena);
@@ -87,7 +121,7 @@ function void Initialise(Asset_Manager *assets, Memory_Arena *arena) {
         assets->file_count += 1;
     }
 
-    u32 asset_index = 0;
+    u32 asset_index = 1;
     u32 file_index  = 0;
 
     assets->assets = AllocArray(assets->arena, Asset, assets->asset_count);
@@ -133,7 +167,19 @@ function void Initialise(Asset_Manager *assets, Memory_Arena *arena) {
     assets->sample_buffer_used = 0;
     assets->sample_buffer      = AllocArray(assets->arena, u8, assets->sample_buffer_size);
 
+    Texture_Handle handle = CreateTextureHandle(0, 1, 1);
+    u8 *white_texture = GetTextureTransferMemory(assets->texture_queue, handle, 0);
+
+    white_texture[0] = 0xFF;
+    white_texture[1] = 0xFF;
+    white_texture[2] = 0xFF;
+    white_texture[3] = 0xFF;
+
     assets->next_texture_index = 1;
+}
+
+function void SetDefaultTextureFlags(Asset_Manager *assets, u32 flags) {
+    assets->default_texture_flags = flags;
 }
 
 function u32 GetAssetIndexByName(Asset_Manager *assets, str8 name) {
@@ -239,11 +285,21 @@ function void LoadImage(Asset_Manager *assets, Image_Handle handle) {
         u64 offset = asset->amt.data_offset;
         u64 size   = asset->amt.data_size;
 
-        // @Todo: Acquire data buffer from transfer queue
+        u32 width  = asset->amt.image.width;
+        u32 height = asset->amt.image.height;
+
+        Texture_Handle texture_handle = CreateTextureHandle(assets->next_texture_index, width, height);
+        u8 *transfer_data = GetTextureTransferMemory(assets->texture_queue, texture_handle, assets->default_texture_flags);
+
+        Asset_File *file = &assets->files[asset->file_index];
+        Platform->ReadFile(&file->handle, transfer_data, offset, size);
+
+        // @Todo: Make sure this is less than max_texture_handles
         //
-        //
-        // @Incomplete: Not yet implemented!
-        //
+        assets->next_texture_index += 1;
+
+        asset->texture = texture_handle;
+        asset->loaded = true;
     }
 }
 

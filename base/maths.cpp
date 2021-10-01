@@ -71,6 +71,16 @@ function b32 IsZero(f64 x) {
     return result;
 }
 
+function u32 ABGRPack(v4 colour) {
+    u32 result =
+        ((cast(u8) (255.0f * colour.a)) << 24) |
+        ((cast(u8) (255.0f * colour.b)) << 16) |
+        ((cast(u8) (255.0f * colour.g)) <<  8) |
+        ((cast(u8) (255.0f * colour.r)) <<  0);
+
+    return result;
+}
+
 // v2u operator overloads
 //
 function v2u operator+(v2u a, v2u b) {
@@ -465,6 +475,35 @@ function v2 Perp(v2 a) {
 
 function v2 Lerp(v2 a, v2 b, f32 t) {
     v2 result = ((1.0f - t) * a) + (t * b);
+    return result;
+}
+
+function v2 Arm2(f32 sin, f32 cos) {
+    v2 result;
+    result.x = sin;
+    result.y = cos;
+
+    return result;
+}
+
+function v2 Arm2(f32 angle) {
+    v2 result;
+    result.x = Sin(angle);
+    result.y = Cos(angle);
+
+    return result;
+}
+
+function v2 Rotate(v2 v, v2 a) {
+    v2 result;
+    result.x = (v.x * a.y) - (v.y * a.x);
+    result.y = (v.x * a.x) + (v.y * a.y);
+
+    return result;
+}
+
+function v2 Rotate(v2 v, f32 a) {
+    v2 result = Rotate(v, Arm2(a));
     return result;
 }
 

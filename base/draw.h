@@ -17,6 +17,8 @@ struct Draw_Transform {
 struct Draw_Batch {
     Draw_Transform game_tx;
 
+    Asset_Manager *assets;
+
     Renderer_Buffer *buffer;
     Render_Command_Quad_Batch *quad_batch;
 };
@@ -37,6 +39,10 @@ struct Sprite_Animation {
 //
 function b32 IsValid(Renderer_Context *renderer);
 
+// Initialises a draw batch for use with the rest of the draw system
+//
+function void Initialise(Draw_Batch *batch, Asset_Manager *assets, Renderer_Buffer *renderer_buffer);
+
 // Sets the camera transform to use. Constructed by the basis vectors provided as the coordinate system axes
 // in x, y, z placed at position p in the world.
 //
@@ -49,26 +55,20 @@ function void DrawClear(Draw_Batch *batch, v4 colour = V4(0, 0, 0, 1), f32 depth
 
 // Base DrawQuad call. Draws a quad with the specified vertex data
 //
-function void DrawQuad(Draw_Batch *batch, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3);
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3);
 
 // More general DrawQuad calls
 //
-function void DrawQuad(Draw_Batch *batch, v3 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
-function void DrawQuad(Draw_Batch *batch, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 
 // Quad outlines
 //
-function void DrawQuadOutline(Draw_Batch *batch, v3 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
 function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
 
 // Line segments
 //
 function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour = V4(1, 1, 1, 1), v4 end_colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
-
-// Circles
-//
-function void DrawCircle(Draw_Batch *batch, v3 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), u32 segments = 100);
-function void DrawCircle(Draw_Batch *batch, v2 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), u32 segments = 100);
 
 // Animation functions
 //

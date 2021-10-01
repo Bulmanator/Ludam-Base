@@ -50,12 +50,18 @@ struct Asset_Manager {
     uptr sample_buffer_used;
     uptr sample_buffer_size;
 
+    Texture_Transfer_Queue *texture_queue;
     u32 next_texture_index;
+    u32 default_texture_flags;
 
     Asset_Hash *hash_slots[256];
 };
 
-function void Initialise(Asset_Manager *assets, Memory_Arena *arena);
+// Initialise the asset manager
+//
+function void Initialise(Asset_Manager *assets, Memory_Arena *arena, Texture_Transfer_Queue *texture_queue, u32 default_texture_flags = 0);
+
+function void SetDefaultTextureFlags(Asset_Manager *assets, u32 flags);
 
 // Get a handle to an image asset using its human readable name
 //

@@ -21,6 +21,15 @@ function void *__RenderCommand(Draw_Batch *batch, uptr size, Render_Command_Type
     return result;
 }
 
+function void Initialise(Draw_Batch *batch, Asset_Manager *assets, Renderer_Buffer *renderer_buffer) {
+    batch->game_tx = {};
+
+    batch->buffer  = renderer_buffer;
+    batch->assets  = assets;
+
+    batch->quad_batch = 0;
+}
+
 function void SetCameraTransform(Draw_Batch *batch, u32 flags, v3 x, v3 y, v3 z, v3 p, f32 near_plane, f32 far_plane, f32 fov) {
     b32 is_ortho = (flags & DrawTransform_Orthographic);
 
@@ -64,7 +73,7 @@ function void DrawClear(Draw_Batch *batch, v4 colour, f32 depth) {
     }
 }
 
-function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, u32 quad_count) {
+function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count) {
     Render_Command_Quad_Batch *result = batch->quad_batch;
 
     Renderer_Buffer *buffer = batch->buffer;
@@ -82,7 +91,7 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, u32 quad_co
         return result;
     }
 
-    if (!result || ((result->index_count + required_indices) > U16_MAX)) {
+    if (!result || ((result->vertex_count + 3) > U16_MAX) || (result->texture.value != texture.value)) {
         result = RenderCommand(batch, Render_Command_Quad_Batch);
 
         if (result) {
@@ -92,6 +101,8 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, u32 quad_co
             result->index_offset  = buffer->num_immediate_indices;
             result->index_count   = 0;
 
+            result->texture       = texture;
+
             batch->quad_batch = result;
         }
     }
@@ -99,8 +110,10 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, u32 quad_co
     return result;
 }
 
-function void DrawQuad(Draw_Batch *batch, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3) {
-    Render_Command_Quad_Batch *quad_batch = DrawQuadBatch(batch, 1);
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3) {
+    Texture_Handle texture = GetImageData(batch->assets, image);
+
+    Render_Command_Quad_Batch *quad_batch = DrawQuadBatch(batch, texture, 1);
     if (quad_batch) {
         Renderer_Buffer *buffer = batch->buffer;
 
@@ -131,3 +144,158 @@ function void DrawQuad(Draw_Batch *batch, vert3 vt0, vert3 vt1, vert3 vt2, vert3
         quad_batch->index_count  += 6;
     }
 }
+
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, v2 dim, f32 angle, v4 colour) {
+    vert3 vt[4] = {};
+
+    // @Todo: I think this needs to be converted to sRGB space before doing this, so maybe we have
+    // to check if sRGB is enabled or not first and pack normally if not
+    //
+    u32 ucolour  = ABGRPack(colour);
+    v2  rot      = Arm2(angle);
+    v2  half_dim = 0.5f * dim;
+
+    vt[0].p  = V3(Rotate(-half_dim, rot)) + centre;
+    vt[0].uv = V2(0, 0);
+    vt[0].c  = ucolour;
+
+    vt[1].p  = V3(Rotate(V2(-half_dim.x, half_dim.y), rot)) + centre;
+    vt[1].uv = V2(0, 1);
+    vt[1].c  = ucolour;
+
+    vt[2].p  = V3(Rotate(half_dim, rot)) + centre;
+    vt[2].uv = V2(1, 1);
+    vt[2].c  = ucolour;
+
+    vt[3].p  = V3(Rotate(V2(half_dim.x, -half_dim.y), rot)) + centre;
+    vt[3].uv = V2(1, 0);
+    vt[3].c  = ucolour;
+
+    DrawQuad(batch, image, vt[0], vt[1], vt[2], vt[3]);
+}
+
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, v2 dim, f32 angle, v4 colour) {
+    DrawQuad(batch, image, V3(centre), dim, angle, colour);
+}
+
+function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle, v4 colour, f32 thickness) {
+    v2 half_dim = 0.5f * dim;
+    v2 rot      = Arm2(angle);
+
+    v2 p[4];
+
+    p[0] = Rotate(-half_dim, rot) + centre;
+    p[1] = Rotate(V2(-half_dim.x, half_dim.y), rot) + centre;
+    p[2] = Rotate(half_dim, rot) + centre;
+    p[3] = Rotate(V2(half_dim.x, -half_dim.y), rot) + centre;
+
+    for (u32 it = 0; it < 4; ++it) {
+        v2 extra = thickness * Noz(p[it] - p[(it + 1) % 4]);
+        DrawLine(batch, p[it], p[(it + 1) % 4] - extra, colour, colour, thickness);
+    }
+}
+
+function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour, v4 end_colour, f32 thickness) {
+    v2 perp = Perp(Noz(end - start));
+
+    u32 ustart_colour = ABGRPack(start_colour);
+    u32 uend_colour   = ABGRPack(end_colour);
+
+    vert3 vt[4];
+
+    vt[0].p  = V3(start);
+    vt[0].uv = V2(0, 0);
+    vt[0].c  = ustart_colour;
+
+    vt[1].p  = V3(start + (thickness * perp));
+    vt[1].uv = V2(1, 0);
+    vt[1].c  = ustart_colour;
+
+    vt[2].p  = V3(end + (thickness * perp));
+    vt[2].uv = V2(1, 1);
+    vt[2].c  = uend_colour;
+
+    vt[3].p  = V3(end);
+    vt[3].uv = V2(0, 1);
+    vt[3].c  = uend_colour;
+
+    DrawQuad(batch, { 0 }, vt[0], vt[1], vt[2], vt[3]);
+}
+
+// Animation functions
+//
+function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, f32 time_per_frame) {
+    animation->image = image;
+
+    animation->time  = 0;
+    animation->time_per_frame = time_per_frame;
+
+    animation->rows = rows;
+    animation->cols = cols;
+
+    animation->current_frame = 0;
+}
+
+function void UpdateAnimation(Sprite_Animation *animation, f32 dt) {
+    animation->time += dt;
+    if (animation->time >= animation->time_per_frame) {
+        animation->time = 0;
+        animation->current_frame += 1;
+    }
+}
+
+function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v3 centre, v2 scale, f32 angle, v4 colour) {
+    Amt_Image *image_info = GetImageInfo(batch->assets, animation->image);
+
+    v2 dim = V2(image_info->width / cast(f32) animation->cols, image_info->height / cast(f32) animation->rows);
+    if (dim.w > dim.h) {
+        dim.h = dim.h / dim.w;
+        dim.w = 1;
+    }
+    else {
+        dim.w = dim.w / dim.h;
+        dim.h = 1;
+    }
+
+    dim *= scale;
+
+    v2 half_dim = 0.5f * dim;
+    v2 rot      = Arm2(angle);
+
+    u32 ucolour = ABGRPack(colour);
+
+    u32 total_frames = animation->rows * animation->cols;
+    u32 frame = animation->current_frame % total_frames;
+
+    u32 row = cast(u32) ((cast(f32) frame) / cast(f32) animation->cols);
+    u32 col = animation->current_frame % animation->cols;
+
+    v2 uv_dim = V2(1.0f / cast(f32) animation->cols, 1.0f / cast(f32) animation->rows);
+    v2 uv_min = uv_dim * V2(col, row);
+
+    vert3 vt[4];
+
+    vt[0].p  = V3(Rotate(-half_dim, rot)) + centre;
+    vt[0].uv = uv_min;
+    vt[0].c  = ucolour;
+
+    vt[1].p  = V3(Rotate(V2(-half_dim.x, half_dim.y), rot)) + centre;
+    vt[1].uv = V2(uv_min.x, uv_min.y + uv_dim.y);
+    vt[1].c  = ucolour;
+
+    vt[2].p  = V3(Rotate(half_dim, rot)) + centre;
+    vt[2].uv = uv_min + uv_dim;
+    vt[2].c  = ucolour;
+
+    vt[3].p  = V3(Rotate(V2(half_dim.x, -half_dim.y), rot)) + centre;
+    vt[3].uv = V2(uv_min.x + uv_dim.x, uv_min.y);
+    vt[3].c  = ucolour;
+
+    DrawQuad(batch, animation->image, vt[0], vt[1], vt[2], vt[3]);
+}
+
+function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v2 centre, v2 scale, f32 angle, v4 colour) {
+    DrawAnimation(batch, animation, V3(centre), scale, angle, colour);
+}
+
+

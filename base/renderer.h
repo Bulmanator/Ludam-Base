@@ -18,6 +18,46 @@ struct Renderer_Buffer;
 typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 typedef RENDERER_SUBMIT_FRAME(Renderer_Submit_Frame);
 
+// Texture transfer
+//
+union Texture_Handle {
+    struct {
+        u32 index;
+
+        u16 width;
+        u16 height;
+    };
+
+    u64 value;
+};
+
+enum Texture_Transfer_Flags {
+    TextureFlag_Filtered = (1 << 0),
+    TextureFlag_Clamped  = (1 << 1)
+};
+
+union Texture_Transfer_Info {
+    struct {
+        Texture_Handle handle;
+
+        u32 flags;
+        u8 *data;
+    };
+
+    u8 pad[64];
+};
+
+struct Texture_Transfer_Queue {
+    Texture_Transfer_Info transfer_info[256];
+    u32 transfer_count;
+
+    u8  *transfer_base;
+    uptr transfer_used;
+    uptr transfer_size;
+};
+
+// Renderer context
+//
 enum Renderer_Context_Flags {
     RendererContext_Initialised = (1 << 0),
 };
@@ -30,11 +70,16 @@ struct Renderer_Context {
 
     Renderer_Begin_Frame    *BeginFrame;
     Renderer_Submit_Frame   *SubmitFrame;
+
+    Texture_Transfer_Queue texture_queue;
 };
 
 struct Renderer_Parameters {
     uptr command_buffer_size;
     u32  max_immediate_quads;
+
+    u32  max_texture_handles;
+    uptr texture_queue_size;
 
     // @Note: These don't need to be filled out by the user
     //
@@ -58,6 +103,8 @@ struct Render_Command_Camera_Transform {
 };
 
 struct Render_Command_Quad_Batch {
+    Texture_Handle texture;
+
     u32 vertex_offset;
     u32 vertex_count;
 
@@ -86,17 +133,6 @@ struct Renderer_Buffer {
     u16  *immediate_indices;
     u32   max_immediate_indices;
     u32   num_immediate_indices;
-};
-
-union Texture_Handle {
-    struct {
-        u32 index;
-
-        u16 width;
-        u16 height;
-    };
-
-    u64 value;
 };
 
 #endif  // BASE_RENDERER_H_

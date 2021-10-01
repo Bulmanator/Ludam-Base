@@ -24,8 +24,13 @@ struct OpenGL_Context {
     GLuint immediate_vbo;
     GLuint immediate_ebo;
 
+    // Texture stuff
+    //
     GLenum texture_format;
-    GLuint white_texture;
+
+    u32     max_texture_handles;
+    GLuint *texture_handles;
+    GLuint  err_texture_handle;
 };
 
 typedef char GLchar;
@@ -45,6 +50,7 @@ typedef ptrdiff_t GLsizeiptr;
 #define GL_LINK_STATUS          0x8B82
 #define GL_BGRA                 0x80E1
 #define GL_WRITE_ONLY           0x88B9
+#define GL_CLAMP_TO_EDGE        0x812F
 
 typedef void type_glGenVertexArrays(GLsizei, GLuint *);
 typedef void type_glGenBuffers(GLsizei, GLuint *);
@@ -66,6 +72,7 @@ typedef void type_glDeleteProgram(GLuint);
 typedef void type_glUseProgram(GLuint);
 typedef void type_glUniformMatrix4fv(GLint, GLsizei, GLboolean, const GLfloat *);
 typedef void type_glDrawElementsBaseVertex(GLenum, GLsizei, GLenum, void *, GLint);
+typedef void type_glGenerateMipmap(GLenum);
 
 typedef void *type_glMapBuffer(GLenum, GLenum);
 
@@ -97,6 +104,7 @@ GLOBAL_OPENGL_FUNCTION(glDeleteProgram);
 GLOBAL_OPENGL_FUNCTION(glUseProgram);
 GLOBAL_OPENGL_FUNCTION(glUniformMatrix4fv);
 GLOBAL_OPENGL_FUNCTION(glDrawElementsBaseVertex);
+GLOBAL_OPENGL_FUNCTION(glGenerateMipmap);
 
 GLOBAL_OPENGL_FUNCTION(glMapBuffer);
 
@@ -111,5 +119,11 @@ GLOBAL_OPENGL_FUNCTION(glCreateShader);
 function b32 OpenGLInitialise(OpenGL_Context *gl, Renderer_Parameters *params);
 function b32 OpenGLCompileProgram(GLuint *handle, const GLchar *vertex_code, const GLchar *fragment_code);
 function b32 OpenGLCompileSimpleProgram(OpenGL_Context *gl);
+
+function Renderer_Buffer *OpenGLBeginFrame(OpenGL_Context *gl, v2u window_dim, rect2 render_region);
+function void OpenGLSubmitFrame(OpenGL_Context *gl);
+
+function GLuint OpenGLGetTextureHandle(OpenGL_Context *gl, Texture_Handle handle);
+function void OpenGLTransferTextures(OpenGL_Context *gl, Texture_Transfer_Queue *texture_queue);
 
 #endif  // RENDERER_OPENGL_H_

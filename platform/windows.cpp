@@ -358,6 +358,8 @@ function f64 WindowsGetElapsedTime(u64 start, u64 end) {
 }
 
 function void WindowsResetInput(Input *input) {
+    if (windows_context->last_time == 0) { windows_context->last_time = WindowsGetTicks(); }
+
     for (u32 it = 0; it < Key_Count; ++it) {
         input->keys[it].transitions = 0;
     }
@@ -655,6 +657,7 @@ function b32 WindowsInitialise(Windows_Parameters *params) {
     }
 
     windows_context->performance_freq = cast(f64) freq.QuadPart;
+    windows_context->last_time        = 0;
 
     // Allocate thread local storage handle
     //

@@ -33,6 +33,10 @@ function f64 Epsilon64(f32 value = 1.0);
 function b32 IsZero(f32 x);
 function b32 IsZero(f64 x);
 
+// Other utlities
+//
+function u32 ABGRPack(v4 colour);
+
 // v2u operator overloads
 //
 // [v2u + v2u] [v2u += v2u]
@@ -83,6 +87,14 @@ function f32 Length(v2 a);
 function v2  Noz(v2 a); // Normalise vector or zero vector if length = 0
 function v2  Perp(v2 a);
 function v2  Lerp(v2 a, v2 b, f32 t);
+
+// Rotation stuff
+//
+function v2 Arm2(f32 sin, f32 cos);
+function v2 Arm2(f32 angle);
+function v2 Rotate(v2 v, v2 a);
+function v2 Rotate(v2 v, f32 a);
+
 function v2  Minimum(v2 a, v2 b);
 function v2  Maximum(v2 a, v2 b);
 
