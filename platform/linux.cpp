@@ -642,9 +642,14 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
 function Renderer_Context *LinuxLoadRenderer(Renderer_Parameters *params) {
     Renderer_Context *result = 0;
 
-    // @Incomplete: This will not work if the executing directory is not the same as the exe
-    //
-    void *renderer_so = dlopen("./renderer_glx.so", RTLD_NOW);
+    str8 exe_path = Platform->GetPath(PlatformPath_Executable);
+    if (!IsValid(exe_path)) { return result; }
+
+    Scratch_Memory scratch = GetScratch();
+
+    str8 full_path = FormatStr(scratch.arena, "%.*s/renderer_glx.so", str8_unpack(exe_path));
+
+    void *renderer_so = dlopen(cast(const char *) full_path.data, RTLD_NOW);
     if (!renderer_so) {
         return result;
     }
