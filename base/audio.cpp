@@ -35,8 +35,14 @@ function void MixPlayingSounds(Audio_State *state, Asset_Manager *assets, Audio_
 
         sound->samples_played += sample_count;
 
-        b32 is_finished = (sound->samples_played == info->sample_count) && !(sound->flags & PlayingSound_Looped);
-        if (is_finished) { StopSound(state, sound); }
+        b32 is_looped   = (sound->flags & PlayingSound_Looped);
+        b32 is_finished = (sound->samples_played == info->sample_count) && !is_looped;
+        if (is_finished) {
+            StopSound(state, sound);
+        }
+        else if (is_looped) {
+            sound->samples_played = 0;
+        }
 
         sound = next;
     }
