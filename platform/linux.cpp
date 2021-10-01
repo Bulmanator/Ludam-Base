@@ -361,3 +361,33 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
     result = true;
     return result;
 }
+
+function Renderer_Context *LinuxLoadRenderer(Renderer_Parameters *params) {
+    Renderer_Context *result = 0;
+
+    // @Incomplete: This will not work if the executing directory is not the same as the exe
+    //
+    void *renderer_so = dlopen("./renderer_glx.so", RTLD_NOW);
+    if (!renderer_so) {
+        return result;
+    }
+
+    Renderer_Initialise *Initialise = cast(Renderer_Initialise *) dlsym(renderer_so, "LinuxOpenGLInitialise");
+    if (!Initialise) {
+        return result;
+    }
+
+    params->platform_data[0] = cast(void *) linux_context->xlib.display;
+    *cast(Window *) &params->platform_data[1] = linux_context->xlib.window;
+
+    params->platform_alloc = Platform->GetMemoryAllocator();
+
+    result = Initialise(params);
+    return result;
+}
+
+function v2u LinuxGetWindowDim() {
+    v2u result = linux_context->window_dim;
+    return result;
+}
+

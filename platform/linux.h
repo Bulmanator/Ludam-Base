@@ -90,4 +90,18 @@ struct Linux_Parameters {
     v2u  window_dim;
 };
 
+// This must be called before using any platform layer code
+//
 function b32 LinuxInitialise(Linux_Parameters *params);
+
+// Will process keyboard and mouse input, get frame delta time and handle quit events
+//
+function void LinuxHandleInput(Input *input);
+
+// Loads the default renderer. OpenGL for now.
+//
+function Renderer_Context *LinuxLoadRenderer(Renderer_Parameters *parameters);
+
+// Gets the current window size
+//
+function v2u LinuxGetWindowDim();
