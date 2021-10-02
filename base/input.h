@@ -122,6 +122,7 @@ struct Input_Button {
 struct Input {
     Input_Button keys[Key_Count];
 
+    u64 ticks;      // Nondescript number of ticks with no defined base
     f64 time;       // Total elapsed time
     f64 delta_time; // Frame delta time
 

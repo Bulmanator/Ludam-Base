@@ -507,6 +507,7 @@ function void WindowsHandleInput(Input *input) {
     u64 current_time   = WindowsGetTicks();
     input->delta_time  = WindowsGetElapsedTime(windows_context->last_time, current_time);
     input->time       += input->delta_time;
+    input->ticks       = current_time;
 
     windows_context->last_time = current_time;
 

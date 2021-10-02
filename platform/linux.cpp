@@ -410,6 +410,7 @@ function void LinuxHandleInput(Input *input) {
     u64 current_time   = LinuxGetTicks();
     input->delta_time  = LinuxGetElapsedTime(linux_context->last_time, current_time);
     input->time       += input->delta_time;
+    input->ticks       = current_time;
 
     linux_context->last_time = current_time;
 
