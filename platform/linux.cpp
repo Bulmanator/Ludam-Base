@@ -468,7 +468,7 @@ function void LinuxHandleInput(Input *input) {
             case MotionNotify: {
                 v2 mouse_clip;
                 mouse_clip.x = -1.0f + (2.0f * (event.xmotion.x / cast(f32) linux_context->window_dim.x));
-                mouse_clip.y =  1.0f - (2.0f * (event.xmotion.y / cast(f32) linux_context->window_dim.x));
+                mouse_clip.y =  1.0f - (2.0f * (event.xmotion.y / cast(f32) linux_context->window_dim.y));
 
                 v2 old_clip = input->mouse_clip;
 

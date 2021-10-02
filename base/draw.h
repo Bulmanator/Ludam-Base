@@ -49,6 +49,18 @@ function void Initialise(Draw_Batch *batch, Asset_Manager *assets, Renderer_Buff
 function void SetCameraTransform(Draw_Batch *batch, u32 flags = 0, v3 x = V3(1, 0, 0), v3 y = V3(0, 1, 0),
         v3 z = V3(0, 0, 1), v3 p = V3(0, 0, 0), f32 near = 0.1f, f32 far = 1000.0f, f32 fov = Radians(50));
 
+// Get the world space position to the corresponding clip space coordinate with the given z value. If
+// the z value is omitted the it will use the camera z value
+//
+function v3 Unproject(Draw_Transform *tx, v3 clip);
+function v3 Unproject(Draw_Transform *tx, v2 clip);
+
+// Get the bounds of the camera frustum at the given z value. If the z value is omitted it will use the
+// camera z value
+//
+function rect3 GetCameraFrustum(Draw_Transform *tx, f32 z);
+function rect3 GetCameraFrustum(Draw_Transform *tx);
+
 // Clears the screen and the depth buffer to the values supplied
 //
 function void DrawClear(Draw_Batch *batch, v4 colour = V4(0, 0, 0, 1), f32 depth = 1.0f);

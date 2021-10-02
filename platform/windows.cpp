@@ -544,7 +544,7 @@ function void WindowsHandleInput(Input *input) {
 
                 v2 mouse_clip;
                 mouse_clip.x = -1.0f + (2.0f * (cast(f32) point.x / cast(f32) windows_context->window_dim.x));
-                mouse_clip.y = -1.0f + (2.0f * (cast(f32) point.y / cast(f32) windows_context->window_dim.y));
+                mouse_clip.y =  1.0f - (2.0f * (cast(f32) point.y / cast(f32) windows_context->window_dim.y));
 
                 v2 old_clip = input->mouse_clip;
 

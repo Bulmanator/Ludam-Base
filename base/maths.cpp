@@ -86,6 +86,7 @@ function u64 NextRandom(Random *r) {
     result ^= (result >>  7);
     result ^= (result << 17);
 
+    r->state = result;
     return result;
 }
 

@@ -53,7 +53,7 @@ function void SetCameraTransform(Draw_Batch *batch, u32 flags, v3 x, v3 y, v3 z,
     m4x4_inv camera = CameraTransform(x, y, z, p);
 
     transform.forward = (transform.forward * camera.forward);
-    transform.inverse = (camera.inverse * transform.forward);
+    transform.inverse = (camera.inverse * transform.inverse);
 
     tx->transform = transform;
 
@@ -71,6 +71,39 @@ function void DrawClear(Draw_Batch *batch, v4 colour, f32 depth) {
         clear->colour = colour;
         clear->depth  = depth;
     }
+}
+
+function v3 Unproject(Draw_Transform *tx, v3 clip) {
+    v3 result = {};
+
+    v4 probe = tx->transform.forward * V4(tx->p - (clip.z * tx->z), 1.0f);
+    clip.xy *= probe.w;
+
+    v4 world = tx->transform.inverse * V4(clip.x, clip.y, probe.z, probe.w);
+    result = world.xyz;
+
+    return result;
+}
+
+function v3 Unproject(Draw_Transform *tx, v2 clip) {
+    v3 result = Unproject(tx, V3(clip, tx->p.z));
+    return result;
+}
+
+function rect3 GetCameraFrustum(Draw_Transform *tx, f32 z) {
+    rect3 result;
+    result.min = Unproject(tx, V3(-1, -1, z));
+    result.max = Unproject(tx, V3( 1,  1, z));
+
+    return result;
+}
+
+function rect3 GetCameraFrustum(Draw_Transform *tx) {
+    rect3 result;
+    result.min = Unproject(tx, V3(-1, -1, tx->p.z));
+    result.max = Unproject(tx, V3( 1,  1, tx->p.z));
+
+    return result;
 }
 
 function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count) {
