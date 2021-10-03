@@ -55,6 +55,9 @@ struct Windows_Context {
     HWND window;
     v2u window_dim;
 
+    u32 click_count;
+    WPARAM last_mb_down; // The last set of mouse buttons that generated a down event
+
     HMODULE renderer_dll;
 
     // WASAPI

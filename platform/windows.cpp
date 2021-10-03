@@ -530,14 +530,29 @@ function void WindowsHandleInput(Input *input) {
             case WM_MBUTTONDOWN:
             case WM_RBUTTONDOWN:
             case WM_XBUTTONDOWN: {
+                SetCapture(windows_context->window);
                 WindowsHandleMouseEvent(input, msg.wParam, true);
+
+                windows_context->last_mb_down = msg.wParam;
+                windows_context->click_count += 1;
             }
             break;
             case WM_LBUTTONUP:
             case WM_MBUTTONUP:
             case WM_RBUTTONUP:
             case WM_XBUTTONUP: {
-                WindowsHandleMouseEvent(input, msg.wParam, false);
+                WPARAM released = (windows_context->last_mb_down & ~msg.wParam);
+                WindowsHandleMouseEvent(input, released, false);
+
+                // @Todo: This should really be an assert because it shouldn't be possible for this to go
+                // negative assuming Windows posts the messages correctly
+                //
+                if (windows_context->click_count > 0) {
+                    windows_context->click_count -= 1;
+                    if (windows_context->click_count == 0) {
+                        ReleaseCapture();
+                    }
+                }
             }
             break;
             case WM_MOUSEMOVE: {
