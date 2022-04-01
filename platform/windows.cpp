@@ -398,14 +398,14 @@ function Key_Code WindowsTranslateVirtualKey(WPARAM wparam) {
             case VK_OEM_PLUS:   { result = Key_Equals;       } break;
             case VK_OEM_MINUS:  { result = Key_Minus;        } break;
             case VK_OEM_COMMA:  { result = Key_Comma;        } break;
-            case VK_OEM_PERIOD: { result = Key_Peroid;       } break;
+            case VK_OEM_PERIOD: { result = Key_Period;       } break;
 
             // These can vary based on keyboard layout. I hate computers
             //
             case VK_OEM_1:      { result = Key_Semicolon;    } break;
             case VK_OEM_2:      { result = Key_Slash;        } break;
-            case VK_OEM_4:      { result = Key_LeftBracket;  } break;
-            case VK_OEM_6:      { result = Key_RightBracket; } break;
+            case VK_OEM_4:      { result = Key_LBracket;     } break;
+            case VK_OEM_6:      { result = Key_RBracket;     } break;
             case VK_OEM_5:      { result = Key_Backslash;    } break;
 
             // @Note: The documentation says this is typically the single quote/ double quote on US layout
@@ -431,13 +431,13 @@ function Key_Code WindowsTranslateVirtualKey(WPARAM wparam) {
             // Other keys
             //
             case VK_SHIFT:   { result = Key_Shift;     } break;
-            case VK_CONTROL: { result = Key_Control;   } break;
+            case VK_CONTROL: { result = Key_Ctrl;      } break;
             case VK_LWIN:    { result = Key_Super;     } break;
             case VK_MENU:    { result = Key_Alt;       } break;
             case VK_RETURN:  { result = Key_Enter;     } break;
             case VK_BACK:    { result = Key_Backspace; } break;
             case VK_TAB:     { result = Key_Tab;       } break;
-            case VK_ESCAPE:  { result = Key_Escape;    } break;
+            case VK_ESCAPE:  { result = Key_Esc;       } break;
 
             default: {} break;
         }
