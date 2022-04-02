@@ -504,7 +504,15 @@ function b32 LinuxInitialise(Linux_Parameters *params) {
 
         SDL_AudioSpec got = {};
 
+		if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+			printf("SDL failed to initialize audio subsystem: %s", SDL_GetError());
+		}
         linux_context->audio_device = SDL_OpenAudioDevice(0, SDL_FALSE, &desired, &got, 0);
+		if(!linux_context->audio_device) {
+			printf("Failed to open audio: %s\n", SDL_GetError());
+			return result;
+		}
+		SDL_PauseAudioDevice(linux_context->audio_device, 0);
 
         linux_context->max_sample_count = 12000;
         linux_context->sound_samples    = AllocArray(&linux_context->arena, s16, linux_context->max_sample_count);
