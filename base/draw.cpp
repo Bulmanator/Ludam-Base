@@ -73,6 +73,21 @@ function void DrawClear(Draw_Batch *batch, v4 colour, f32 depth) {
     }
 }
 
+function void SetRenderTarget(Draw_Batch *batch, Render_Target target) {
+    Render_Command_Set_Target *rt = RenderCommand(batch, Render_Command_Set_Target);
+    if (rt) {
+        rt->target = target;
+        batch->quad_batch = 0;
+    }
+}
+
+function void ResolveMasks(Draw_Batch *batch, b32 reverse) {
+    Render_Command_Resolve_Masks *resolve = RenderCommand(batch, Render_Command_Resolve_Masks);
+    if (resolve) {
+        resolve->reverse = reverse;
+    }
+}
+
 function v3 Unproject(Draw_Transform *tx, v3 clip) {
     v3 result = {};
 
@@ -106,7 +121,7 @@ function rect3 GetCameraFrustum(Draw_Transform *tx) {
     return result;
 }
 
-function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count) {
+function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count, b32 is_circle) {
     Render_Command_Quad_Batch *result = batch->quad_batch;
 
     Renderer_Buffer *buffer = batch->buffer;
@@ -124,7 +139,7 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Han
         return result;
     }
 
-    if (!result || ((result->vertex_count + 3) > U16_MAX) || (result->texture.value != texture.value)) {
+    if (!result || ((result->vertex_count + 3) > U16_MAX) || (result->texture.value != texture.value) || (result->is_circle != is_circle)) {
         result = RenderCommand(batch, Render_Command_Quad_Batch);
 
         if (result) {
@@ -134,6 +149,7 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Han
             result->index_offset  = buffer->num_immediate_indices;
             result->index_count   = 0;
 
+            result->is_circle     = is_circle;
             result->texture       = texture;
 
             batch->quad_batch = result;
@@ -143,10 +159,10 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Han
     return result;
 }
 
-function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3) {
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3, b32 is_circle) {
     Texture_Handle texture = GetImageData(batch->assets, image);
 
-    Render_Command_Quad_Batch *quad_batch = DrawQuadBatch(batch, texture, 1);
+    Render_Command_Quad_Batch *quad_batch = DrawQuadBatch(batch, texture, 1, is_circle);
     if (quad_batch) {
         Renderer_Buffer *buffer = batch->buffer;
 
@@ -232,6 +248,39 @@ function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, f32 sca
 
 function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, f32 scale, f32 angle, v4 colour) {
     DrawQuad(batch, image, V3(centre), scale, angle, colour);
+}
+
+function void DrawCircle(Draw_Batch *batch, Image_Handle image, v3 centre, f32 radius, f32 angle, v4 colour) {
+    vert3 vt[4] = {};
+
+    // @Todo: I think this needs to be converted to sRGB space before doing this, so maybe we have
+    // to check if sRGB is enabled or not first and pack normally if not
+    //
+    u32 ucolour  = ABGRPack(colour);
+    v2  rot      = Arm2(angle);
+    v2  half_dim = V2(radius, radius);
+
+    vt[0].p  = V3(Rotate(-half_dim, rot)) + centre;
+    vt[0].uv = V2(0, 0);
+    vt[0].c  = ucolour;
+
+    vt[1].p  = V3(Rotate(V2(-half_dim.x, half_dim.y), rot)) + centre;
+    vt[1].uv = V2(0, 1);
+    vt[1].c  = ucolour;
+
+    vt[2].p  = V3(Rotate(half_dim, rot)) + centre;
+    vt[2].uv = V2(1, 1);
+    vt[2].c  = ucolour;
+
+    vt[3].p  = V3(Rotate(V2(half_dim.x, -half_dim.y), rot)) + centre;
+    vt[3].uv = V2(1, 0);
+    vt[3].c  = ucolour;
+
+    DrawQuad(batch, image, vt[0], vt[1], vt[2], vt[3], true);
+}
+
+function void DrawCircle(Draw_Batch *batch, Image_Handle image, v2 centre, f32 radius, f32 angle, v4 colour) {
+    DrawCircle(batch, image, V3(centre, 0.0), radius, angle, colour);
 }
 
 function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle, v4 colour, f32 thickness) {
@@ -354,5 +403,3 @@ function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v3 c
 function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v2 centre, v2 scale, f32 angle, v4 colour) {
     DrawAnimation(batch, animation, V3(centre), scale, angle, colour);
 }
-
-

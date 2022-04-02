@@ -1,6 +1,11 @@
 #if !defined(RENDERER_OPENGL_H_)
 #define RENDERER_OPENGL_H_
 
+struct OpenGL_Framebuffer {
+    GLuint handle;
+    GLuint texture;
+};
+
 struct OpenGL_Info {
     str8 vendor;
     str8 renderer;
@@ -20,9 +25,24 @@ struct OpenGL_Context {
     GLuint program;
     GLint  program_transform_loc;
 
+    GLuint circle_program;
+    GLint  circle_fade;
+    GLint  circle_tx;
+
     GLuint immediate_vao;
     GLuint immediate_vbo;
     GLuint immediate_ebo;
+
+    OpenGL_Framebuffer mask_fb;
+    OpenGL_Framebuffer masked_fb;
+
+    GLuint fullscreen_vao;
+    GLuint fullscreen_quad;
+
+    GLuint mask_program;
+    GLint  mask_texture_unit;
+    GLint  masked_texture_unit;
+    GLint  mask_reverse;
 
     // Texture stuff
     //
@@ -51,6 +71,12 @@ typedef ptrdiff_t GLsizeiptr;
 #define GL_BGRA                 0x80E1
 #define GL_WRITE_ONLY           0x88B9
 #define GL_CLAMP_TO_EDGE        0x812F
+#define GL_FRAMEBUFFER          0x8D40
+#define GL_COLOR_ATTACHMENT0    0x8CE0
+#define GL_FRAMEBUFFER_COMPLETE 0x8CD5
+#define GL_TEXTURE0             0x84C0
+#define GL_TEXTURE1             0x84C1
+#define GL_DEPTH_ATTACHMENT     0x8D00
 
 typedef void type_glGenVertexArrays(GLsizei, GLuint *);
 typedef void type_glGenBuffers(GLsizei, GLuint *);
@@ -73,6 +99,12 @@ typedef void type_glUseProgram(GLuint);
 typedef void type_glUniformMatrix4fv(GLint, GLsizei, GLboolean, const GLfloat *);
 typedef void type_glDrawElementsBaseVertex(GLenum, GLsizei, GLenum, void *, GLint);
 typedef void type_glGenerateMipmap(GLenum);
+typedef void type_glGenFramebuffers(GLsizei, GLuint *);
+typedef void type_glBindFramebuffer(GLenum, GLuint);
+typedef void type_glFramebufferTexture2D(GLenum, GLenum, GLenum, GLuint, GLint);
+typedef void type_glActiveTexture(GLenum);
+typedef void type_glUniform1i(GLint, GLint);
+typedef void type_glUniform1f(GLint, GLfloat);
 
 typedef void *type_glMapBuffer(GLenum, GLenum);
 
@@ -82,6 +114,8 @@ typedef GLint type_glGetUniformLocation(GLuint, const GLchar *);
 
 typedef GLuint type_glCreateProgram();
 typedef GLuint type_glCreateShader(GLenum);
+
+typedef GLenum type_glCheckFramebufferStatus(GLenum);
 
 #define GLOBAL_OPENGL_FUNCTION(name) static type_##name *name
 GLOBAL_OPENGL_FUNCTION(glGenVertexArrays);
@@ -105,6 +139,12 @@ GLOBAL_OPENGL_FUNCTION(glUseProgram);
 GLOBAL_OPENGL_FUNCTION(glUniformMatrix4fv);
 GLOBAL_OPENGL_FUNCTION(glDrawElementsBaseVertex);
 GLOBAL_OPENGL_FUNCTION(glGenerateMipmap);
+GLOBAL_OPENGL_FUNCTION(glGenFramebuffers);
+GLOBAL_OPENGL_FUNCTION(glBindFramebuffer);
+GLOBAL_OPENGL_FUNCTION(glFramebufferTexture2D);
+GLOBAL_OPENGL_FUNCTION(glActiveTexture);
+GLOBAL_OPENGL_FUNCTION(glUniform1i);
+GLOBAL_OPENGL_FUNCTION(glUniform1f);
 
 GLOBAL_OPENGL_FUNCTION(glMapBuffer);
 
@@ -114,16 +154,24 @@ GLOBAL_OPENGL_FUNCTION(glGetUniformLocation);
 
 GLOBAL_OPENGL_FUNCTION(glCreateProgram);
 GLOBAL_OPENGL_FUNCTION(glCreateShader);
+
+GLOBAL_OPENGL_FUNCTION(glCheckFramebufferStatus);
 #undef GLOBAL_OPENGL_FUNCTION
 
 function b32 OpenGLInitialise(OpenGL_Context *gl, Renderer_Parameters *params);
 function b32 OpenGLCompileProgram(GLuint *handle, const GLchar *vertex_code, const GLchar *fragment_code);
 function b32 OpenGLCompileSimpleProgram(OpenGL_Context *gl);
+function b32 OpenGLCompileCircleProgram(OpenGL_Context *gl);
+function b32 OpenGLCompileMaskProgram(OpenGL_Context *gl);
 
 function Renderer_Buffer *OpenGLBeginFrame(OpenGL_Context *gl, v2u window_dim, rect2 render_region);
 function void OpenGLSubmitFrame(OpenGL_Context *gl);
 
 function GLuint OpenGLGetTextureHandle(OpenGL_Context *gl, Texture_Handle handle);
 function void OpenGLTransferTextures(OpenGL_Context *gl, Texture_Transfer_Queue *texture_queue);
+
+function GLuint OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target);
+
+function void OpenGLResolveMasks(OpenGL_Context *gl, b32 reverse);
 
 #endif  // RENDERER_OPENGL_H_

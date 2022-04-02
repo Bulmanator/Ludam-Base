@@ -65,9 +65,18 @@ function rect3 GetCameraFrustum(Draw_Transform *tx);
 //
 function void DrawClear(Draw_Batch *batch, v4 colour = V4(0, 0, 0, 1), f32 depth = 1.0f);
 
+// Sets the render target
+//
+function void SetRenderTarget(Draw_Batch *batch, Render_Target target = RenderTarget_Default);
+
+// Resolves mask buffers to draw to the unmasked or masked portion to the screen depending
+// on reverse
+//
+function void ResolveMasks(Draw_Batch *batch, b32 reverse);
+
 // Base DrawQuad call. Draws a quad with the specified vertex data
 //
-function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3);
+function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 vt1, vert3 vt2, vert3 vt3, b32 is_circle = false);
 
 // More general DrawQuad calls
 //
@@ -76,6 +85,9 @@ function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, v2 dim,
 
 function void DrawQuad(Draw_Batch *batch, Image_Handle image, v3 centre, f32 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 function void DrawQuad(Draw_Batch *batch, Image_Handle image, v2 centre, f32 scale, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+
+function void DrawCircle(Draw_Batch *batch, Image_Handle image, v3 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
+function void DrawCircle(Draw_Batch *batch, Image_Handle image, v2 centre, f32 radius, f32 angle = 0, v4 colour = V4(1, 1, 1, 1));
 
 // Quad outlines
 //

@@ -820,6 +820,8 @@ function Renderer_Context *WindowsLoadRenderer(Renderer_Parameters *params) {
 
     params->platform_alloc = Platform->GetMemoryAllocator();
 
+    params->window_dim = WindowsGetWindowDim();
+
     result = Initialise(params);
     return result;
 }

@@ -18,6 +18,12 @@ struct Renderer_Buffer;
 typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 typedef RENDERER_SUBMIT_FRAME(Renderer_Submit_Frame);
 
+enum Render_Target {
+    RenderTarget_Default = 0,
+    RenderTarget_Masked,
+    RenderTarget_Mask
+};
+
 // Texture transfer
 //
 union Texture_Handle {
@@ -83,6 +89,7 @@ struct Renderer_Parameters {
 
     // @Note: These don't need to be filled out by the user
     //
+    v2u window_dim;
     void *platform_data[2];
     Memory_Allocator *platform_alloc;
 };
@@ -90,7 +97,9 @@ struct Renderer_Parameters {
 enum Render_Command_Type {
     RenderCommand_Render_Command_Clear = 0,
     RenderCommand_Render_Command_Camera_Transform,
-    RenderCommand_Render_Command_Quad_Batch
+    RenderCommand_Render_Command_Quad_Batch,
+    RenderCommand_Render_Command_Set_Target,
+    RenderCommand_Render_Command_Resolve_Masks
 };
 
 struct Render_Command_Clear {
@@ -105,11 +114,22 @@ struct Render_Command_Camera_Transform {
 struct Render_Command_Quad_Batch {
     Texture_Handle texture;
 
+    b32 is_circle;
+    f32 circle_fade;
+
     u32 vertex_offset;
     u32 vertex_count;
 
     u32 index_offset;
     u32 index_count;
+};
+
+struct Render_Command_Set_Target {
+    u32 target;
+};
+
+struct Render_Command_Resolve_Masks {
+    b32 reverse;
 };
 
 struct Renderer_Setup {

@@ -263,6 +263,12 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     WGL_LOAD_FUNCTION(glUniformMatrix4fv);
     WGL_LOAD_FUNCTION(glDrawElementsBaseVertex);
     WGL_LOAD_FUNCTION(glGenerateMipmap);
+    WGL_LOAD_FUNCTION(glGenFramebuffers);
+    WGL_LOAD_FUNCTION(glBindFramebuffer);
+    WGL_LOAD_FUNCTION(glFramebufferTexture2D);
+    WGL_LOAD_FUNCTION(glActiveTexture);
+    WGL_LOAD_FUNCTION(glUniform1i);
+    WGL_LOAD_FUNCTION(glUniform1f);
 
     WGL_LOAD_FUNCTION(glMapBuffer);
 
@@ -272,6 +278,7 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
 
     WGL_LOAD_FUNCTION(glCreateProgram);
     WGL_LOAD_FUNCTION(glCreateShader);
+    WGL_LOAD_FUNCTION(glCheckFramebufferStatus);
 
     return result;
 }
