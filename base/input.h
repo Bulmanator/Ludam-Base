@@ -53,14 +53,14 @@ enum Key_Code {
     Key(Grave),
     Key(Minus),
     Key(Equals),
-    Key(LeftBracket),
-    Key(RightBracket),
+    Key(LBracket),
+    Key(RBracket),
     Key(Semicolon),
     Key(Quote),
     Key(Hash),
     Key(Backslash),
     Key(Comma),
-    Key(Peroid),
+    Key(Period),
     Key(Slash),
 
     // F keys
@@ -90,13 +90,13 @@ enum Key_Code {
      // Other keys
      //
      Key(Shift),
-     Key(Control),
+     Key(Ctrl),
      Key(Alt),
      Key(Super),
      Key(Tab),
      Key(Enter),
      Key(Backspace),
-     Key(Escape),
+     Key(Esc),
 
      Key(Count)
 #undef Key

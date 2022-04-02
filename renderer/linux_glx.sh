@@ -1,7 +1,7 @@
 #!/bin/sh
 
 COMPILER_FLAGS="-fPIC -fno-strict-aliasing -Wall -Wno-unused-function -I $(dirname $0)/.."
-LINKER_FLAGS=-lGL
+LINKER_FLAGS="-lGL -lSDL2"
 
 if [[ "$1" == "release" ]];
 then

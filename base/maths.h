@@ -31,6 +31,8 @@ function f32 Tan(f32 x);
 function f32 Lerp(f32 a, f32 b, f32 t);
 function f64 Lerp(f64 a, f64 b, f64 t);
 
+function f32 Sign(f32 x);
+
  // Default is positive, if you want negative epsilon just pass a negative value here instead
  //
 function f32 Epsilon32(f32 value = 1.0f);

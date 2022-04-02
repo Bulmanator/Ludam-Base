@@ -29,6 +29,11 @@ function f64 Lerp(f64 a, f64 b, f64 t) {
     return result;
 }
 
+function f32 Sign(f32 x) {
+    f32 result = (x < 0) ? -1.0f : 1.0f;
+    return result;
+}
+
 function f32 Epsilon32(f32 value) {
     f32 result;
 
