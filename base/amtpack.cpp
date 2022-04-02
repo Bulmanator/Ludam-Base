@@ -147,6 +147,10 @@ function void PackAssetsToAmt(Packer_Context *packer, str8 directory) {
     Path_List dir_list = Platform->ListPath(scratch.arena, directory);
     Path_List asset_list = GetAssetFileList(scratch.arena, &dir_list);
 
+    if (!asset_list.entry_count) {
+        return; // No assets
+    }
+
     packer->asset_count = asset_list.entry_count;
 
     str8 working = Platform->GetPath(PlatformPath_Executable);
