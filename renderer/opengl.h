@@ -142,9 +142,12 @@ GLOBAL_OPENGL_FUNCTION(glGenerateMipmap);
 GLOBAL_OPENGL_FUNCTION(glGenFramebuffers);
 GLOBAL_OPENGL_FUNCTION(glBindFramebuffer);
 GLOBAL_OPENGL_FUNCTION(glFramebufferTexture2D);
-GLOBAL_OPENGL_FUNCTION(glActiveTexture);
 GLOBAL_OPENGL_FUNCTION(glUniform1i);
 GLOBAL_OPENGL_FUNCTION(glUniform1f);
+
+#if !defined(__linux__)
+    GLOBAL_OPENGL_FUNCTION(glActiveTexture);
+#endif
 
 GLOBAL_OPENGL_FUNCTION(glMapBuffer);
 

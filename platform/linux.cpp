@@ -414,7 +414,7 @@ function void LinuxHandleInput(Input *input) {
 
                 v2 mouse_clip;
                 mouse_clip.x = -1.0f + (2.0f * (mouse_p.x / window_dim.w));
-                mouse_clip.y = -1.0f + (2.0f * (mouse_p.y / window_dim.h));
+                mouse_clip.y =  1.0f - (2.0f * (mouse_p.y / window_dim.h));
 
                 v2 mouse_delta = input->mouse_clip - mouse_clip;
 
@@ -554,6 +554,8 @@ function Renderer_Context *LinuxLoadRenderer(Renderer_Parameters *params) {
 
     params->platform_data[0] = cast(void *) linux_context->window;
     params->platform_alloc   = Platform->GetMemoryAllocator();
+
+    params->window_dim = LinuxGetWindowDim();
 
     result = Initialise(params);
     return result;

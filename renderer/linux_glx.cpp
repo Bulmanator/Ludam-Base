@@ -51,6 +51,11 @@ function b32 GLXInitialise(OpenGL_Context *gl, SDL_Window *window) {
         GLX_LOAD_FUNCTION(glUniformMatrix4fv);
         GLX_LOAD_FUNCTION(glDrawElementsBaseVertex);
         GLX_LOAD_FUNCTION(glGenerateMipmap);
+        GLX_LOAD_FUNCTION(glGenFramebuffers);
+        GLX_LOAD_FUNCTION(glBindFramebuffer);
+        GLX_LOAD_FUNCTION(glFramebufferTexture2D);
+        GLX_LOAD_FUNCTION(glUniform1i);
+        GLX_LOAD_FUNCTION(glUniform1f);
 
         GLX_LOAD_FUNCTION(glMapBuffer);
 
@@ -60,6 +65,7 @@ function b32 GLXInitialise(OpenGL_Context *gl, SDL_Window *window) {
 
         GLX_LOAD_FUNCTION(glCreateProgram);
         GLX_LOAD_FUNCTION(glCreateShader);
+        GLX_LOAD_FUNCTION(glCheckFramebufferStatus);
     }
 
     result = g_gl_context != 0;
