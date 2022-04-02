@@ -89,6 +89,11 @@ function b32 IsValid(Sound_Handle handle) {
 }
 
 function void Initialise(Asset_Manager *assets, Memory_Arena *arena, Texture_Transfer_Queue *texture_queue, u32 default_texture_flags) {
+#if LUDAM_INTERNAL
+    Packer_Context packer = {};
+    PackAssetsToAmt(&packer, WrapZ(BASE_ASSET_PATH));
+#endif
+
     Scratch_Memory scratch = GetScratch();
     assets->arena = arena;
 

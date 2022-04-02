@@ -20,4 +20,8 @@
 
 #include "base/audio.h"
 
+#if LUDAM_INTERNAL
+#    include "base/amtpack.h"
+#endif
+
 #endif  // BASE_H_

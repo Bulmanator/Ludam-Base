@@ -15,3 +15,7 @@
 #include "base/assets.cpp"
 
 #include "base/audio.cpp"
+
+#if LUDAM_INTERNAL
+#    include "base/amtpack.cpp"
+#endif
