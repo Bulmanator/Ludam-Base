@@ -56,6 +56,8 @@ function b32 GLXInitialise(OpenGL_Context *gl, SDL_Window *window) {
         GLX_LOAD_FUNCTION(glFramebufferTexture2D);
         GLX_LOAD_FUNCTION(glUniform1i);
         GLX_LOAD_FUNCTION(glUniform1f);
+        GLX_LOAD_FUNCTION(glUniform2f);
+        GLX_LOAD_FUNCTION(glDeleteFramebuffers);
 
         GLX_LOAD_FUNCTION(glMapBuffer);
 
