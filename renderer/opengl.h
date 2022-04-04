@@ -3,7 +3,8 @@
 
 struct OpenGL_Framebuffer {
     GLuint handle;
-    GLuint texture;
+
+    GLuint attachments[2];
 };
 
 struct OpenGL_Info {
@@ -14,6 +15,24 @@ struct OpenGL_Info {
     b32 multisample_supported;
 };
 
+struct OpenGL_Quad_Program {
+    GLuint handle;
+
+    GLint transform;    // mat4
+
+    GLint image;        // sampler2D
+
+    GLint is_circle;    // bool
+    GLint circle_fade;  // float
+
+    GLint use_mask;     // bool
+    GLint reverse_mask; // bool
+
+    GLint mask;         // sampler2D
+
+    GLint screen_dim;   // vec2
+};
+
 struct OpenGL_Context {
     Renderer_Context renderer;
     Memory_Arena arena;
@@ -22,16 +41,20 @@ struct OpenGL_Context {
 
     Renderer_Buffer command_buffer;
 
+    OpenGL_Quad_Program program;
+
+    GLuint immediate_vao;
+    GLuint immediate_vbo;
+    GLuint immediate_ebo;
+
+    OpenGL_Framebuffer framebuffers[4];
+#if 0
     GLuint program;
     GLint  program_transform_loc;
 
     GLuint circle_program;
     GLint  circle_fade;
     GLint  circle_tx;
-
-    GLuint immediate_vao;
-    GLuint immediate_vbo;
-    GLuint immediate_ebo;
 
     OpenGL_Framebuffer mask_fb;
     OpenGL_Framebuffer masked_fb;
@@ -43,6 +66,7 @@ struct OpenGL_Context {
     GLint  mask_texture_unit;
     GLint  masked_texture_unit;
     GLint  mask_reverse;
+#endif
 
     // Texture stuff
     //
@@ -77,6 +101,10 @@ typedef ptrdiff_t GLsizeiptr;
 #define GL_TEXTURE0             0x84C0
 #define GL_TEXTURE1             0x84C1
 #define GL_DEPTH_ATTACHMENT     0x8D00
+#define GL_R8                   0x8229
+#define GL_DEPTH24_STENCIL8     0x88F0
+#define GL_UNSIGNED_INT_24_8    0x84FA
+#define GL_DEPTH_STENCIL        0x84F9
 
 typedef void type_glGenVertexArrays(GLsizei, GLuint *);
 typedef void type_glGenBuffers(GLsizei, GLuint *);
@@ -105,6 +133,8 @@ typedef void type_glFramebufferTexture2D(GLenum, GLenum, GLenum, GLuint, GLint);
 typedef void type_glActiveTexture(GLenum);
 typedef void type_glUniform1i(GLint, GLint);
 typedef void type_glUniform1f(GLint, GLfloat);
+typedef void type_glUniform2f(GLint, GLfloat, GLfloat);
+typedef void type_glDeleteFramebuffers(GLsizei, const GLuint *);
 
 typedef void *type_glMapBuffer(GLenum, GLenum);
 
@@ -144,6 +174,8 @@ GLOBAL_OPENGL_FUNCTION(glBindFramebuffer);
 GLOBAL_OPENGL_FUNCTION(glFramebufferTexture2D);
 GLOBAL_OPENGL_FUNCTION(glUniform1i);
 GLOBAL_OPENGL_FUNCTION(glUniform1f);
+GLOBAL_OPENGL_FUNCTION(glUniform2f);
+GLOBAL_OPENGL_FUNCTION(glDeleteFramebuffers);
 
 #if !defined(__linux__)
     GLOBAL_OPENGL_FUNCTION(glActiveTexture);
@@ -162,8 +194,10 @@ GLOBAL_OPENGL_FUNCTION(glCheckFramebufferStatus);
 #undef GLOBAL_OPENGL_FUNCTION
 
 function b32 OpenGLInitialise(OpenGL_Context *gl, Renderer_Parameters *params);
+function b32 OpenGLBuildFramebuffers(OpenGL_Context *gl, v2u screen_dim);
+
 function b32 OpenGLCompileProgram(GLuint *handle, const GLchar *vertex_code, const GLchar *fragment_code);
-function b32 OpenGLCompileSimpleProgram(OpenGL_Context *gl);
+function b32 OpenGLCompileQuadProgram(OpenGL_Quad_Program *program);
 function b32 OpenGLCompileCircleProgram(OpenGL_Context *gl);
 function b32 OpenGLCompileMaskProgram(OpenGL_Context *gl);
 
@@ -173,8 +207,8 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl);
 function GLuint OpenGLGetTextureHandle(OpenGL_Context *gl, Texture_Handle handle);
 function void OpenGLTransferTextures(OpenGL_Context *gl, Texture_Transfer_Queue *texture_queue);
 
-function GLuint OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target);
+function OpenGL_Framebuffer *OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target);
 
-function void OpenGLResolveMasks(OpenGL_Context *gl, b32 reverse);
+//function void OpenGLResolveMasks(OpenGL_Context *gl, b32 reverse);
 
 #endif  // RENDERER_OPENGL_H_

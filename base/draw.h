@@ -19,6 +19,10 @@ struct Draw_Batch {
 
     Asset_Manager *assets;
 
+    Render_Target target;
+    Render_Target mask;
+    b32 reverse_mask;
+
     Renderer_Buffer *buffer;
     Render_Command_Quad_Batch *quad_batch;
 };
@@ -69,10 +73,9 @@ function void DrawClear(Draw_Batch *batch, v4 colour = V4(0, 0, 0, 1), f32 depth
 //
 function void SetRenderTarget(Draw_Batch *batch, Render_Target target = RenderTarget_Default);
 
-// Resolves mask buffers to draw to the unmasked or masked portion to the screen depending
-// on reverse
+// Sets the target to mask to
 //
-function void ResolveMasks(Draw_Batch *batch, b32 reverse);
+function void SetMaskTarget(Draw_Batch *batch, Render_Target mask = RenderTarget_Default, b32 reverse = false);
 
 // Base DrawQuad call. Draws a quad with the specified vertex data
 //

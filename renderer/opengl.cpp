@@ -100,90 +100,13 @@ function b32 OpenGLInitialise(OpenGL_Context *gl, Renderer_Parameters *params) {
 
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    if (!OpenGLCompileSimpleProgram(gl)) {
+    if (!OpenGLCompileQuadProgram(&gl->program)) {
         return result;
     }
 
-    if (!OpenGLCompileCircleProgram(gl)) {
+    if (!OpenGLBuildFramebuffers(gl, params->window_dim)) {
         return result;
     }
-
-    if (!OpenGLCompileMaskProgram(gl)) {
-        return result;
-    }
-
-    f32 fullscreen_quad[] = {
-        -1, -1, 0, 0,
-        -1,  1, 0, 1,
-         1,  1, 1, 1,
-
-        -1, -1, 0, 0,
-         1,  1, 1, 1,
-         1, -1, 1, 0
-    };
-
-    glGenVertexArrays(1, &gl->fullscreen_vao);
-    glGenBuffers(1, &gl->fullscreen_quad);
-
-    glBindVertexArray(gl->fullscreen_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, gl->fullscreen_quad);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 16, cast(GLvoid *) 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 16, cast(GLvoid *) 8);
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_quad), fullscreen_quad, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    glGenFramebuffers(1, &gl->mask_fb.handle);
-    glGenTextures(1, &gl->mask_fb.texture);
-
-    glBindTexture(GL_TEXTURE_2D, gl->mask_fb.texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, params->window_dim.w, params->window_dim.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, gl->mask_fb.handle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl->mask_fb.texture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        return result;
-    }
-
-    glGenFramebuffers(1, &gl->masked_fb.handle);
-    glGenTextures(1, &gl->masked_fb.texture);
-
-    glBindTexture(GL_TEXTURE_2D, gl->masked_fb.texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, params->window_dim.w, params->window_dim.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, gl->masked_fb.handle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl->masked_fb.texture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
-
-    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        return result;
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     result = true;
     return result;
@@ -244,7 +167,7 @@ function b32 OpenGLCompileProgram(GLuint *handle, const GLchar *vertex_code, con
     return result;
 }
 
-function b32 OpenGLCompileSimpleProgram(OpenGL_Context *gl) {
+function b32 OpenGLCompileQuadProgram(OpenGL_Quad_Program *program) {
     b32 result = false;
 
     const GLchar *vertex_code = R"VERT(
@@ -276,128 +199,123 @@ function b32 OpenGLCompileSimpleProgram(OpenGL_Context *gl) {
 
         uniform sampler2D image;
 
+        uniform bool is_circle;
+        uniform float circle_fade;
+
+        uniform bool use_mask;
+        uniform bool reverse_mask;
+        uniform sampler2D mask;
+
+        uniform vec2 screen_dim;
+
         void main() {
+            vec2 screen_uv = gl_FragCoord.xy / screen_dim;
+
+            float mask_alpha = 1.0;
+            if (use_mask) {
+                if (reverse_mask) {
+                    mask_alpha = 1.0 - texture(mask, screen_uv).a;
+                }
+                else {
+                    mask_alpha = texture(mask, screen_uv).a;
+                }
+            }
+
+            float alpha = 1.0;
+            if (is_circle) {
+                vec2 uv = (2.0 * frag_uv) - 1.0;
+                float dist = 1.0 - length(uv);
+
+                alpha = smoothstep(0.0, circle_fade, dist);
+            }
+
             final_colour = texture(image, frag_uv) * frag_colour;
-        }
-    )FRAG";
 
-    result = OpenGLCompileProgram(&gl->program, vertex_code, fragment_code);
-    if (result) {
-        gl->program_transform_loc = glGetUniformLocation(gl->program, "transform");
-        result = (gl->program_transform_loc != -1);
-    }
-
-    return result;
-}
-
-function b32 OpenGLCompileCircleProgram(OpenGL_Context *gl) {
-    b32 result = false;
-
-    const GLchar *vertex_code = R"VERT(
-        #version 330 core
-
-        layout(location = 0) in vec3 position;
-        layout(location = 1) in vec2 uv;
-        layout(location = 2) in vec4 colour;
-
-        out vec2 frag_uv;
-        out vec4 frag_colour;
-
-        uniform mat4 transform;
-
-        void main() {
-            gl_Position = transform * vec4(position, 1.0);
-            frag_uv     = uv;
-            frag_colour = colour;
-        }
-    )VERT";
-
-    const GLchar *fragment_code = R"FRAG(
-        #version 330 core
-
-        in vec2 frag_uv;
-        in vec4 frag_colour;
-
-        out vec4 final_colour;
-
-        uniform sampler2D image;
-        uniform float fade = 0.5;
-
-        void main() {
-            vec2 uv = (2.0 * frag_uv) - 1.0;
-            float dist = 1.0 - length(uv);
-
-            float alpha = smoothstep(0.0, fade, dist);
-            //alpha *= smoothstep(1.0 + fade, 1.0, dist);
-
-            final_colour    = frag_colour * texture(image, frag_uv);
+            final_colour.a *= mask_alpha;
             final_colour.a *= alpha;
         }
     )FRAG";
 
-    result = OpenGLCompileProgram(&gl->circle_program, vertex_code, fragment_code);
+    result = OpenGLCompileProgram(&program->handle, vertex_code, fragment_code);
     if (result) {
-        gl->circle_tx   = glGetUniformLocation(gl->circle_program, "transform");
-        gl->circle_fade = glGetUniformLocation(gl->circle_program, "fade");
+        program->transform    = glGetUniformLocation(program->handle, "transform");
+        program->image        = glGetUniformLocation(program->handle, "image");
+        program->is_circle    = glGetUniformLocation(program->handle, "is_circle");
+        program->circle_fade  = glGetUniformLocation(program->handle, "circle_fade");
+        program->use_mask     = glGetUniformLocation(program->handle, "use_mask");
+        program->reverse_mask = glGetUniformLocation(program->handle, "reverse_mask");
+        program->mask         = glGetUniformLocation(program->handle, "mask");
+        program->screen_dim   = glGetUniformLocation(program->handle, "screen_dim");
     }
 
     return result;
 }
 
-function b32 OpenGLCompileMaskProgram(OpenGL_Context *gl) {
+function b32 OpenGLBuildFramebuffers(OpenGL_Context *gl, v2u screen_dim) {
     b32 result = false;
+    for (u32 it = 0; it < ArraySize(gl->framebuffers); ++it) {
+        OpenGL_Framebuffer *framebuffer = &gl->framebuffers[it];
+        Render_Target target = cast(Render_Target) (it + 1);
 
-    const GLchar *vertex_code = R"VERT(
-        #version 330 core
-
-        in vec2 p;
-        in vec2 uv;
-
-        out vec2 frag_uv;
-
-        void main() {
-            gl_Position = vec4(p, 0.0, 1.0);
-
-            frag_uv = uv;
+        if (framebuffer->handle != 0) {
+            // Release any others previously made, this is called at init and if the window
+            // is resized so we always have the correct size for the textures
+            //
+            glDeleteFramebuffers(1, &framebuffer->handle);
+            glDeleteTextures(2, framebuffer->attachments);
         }
-    )VERT";
 
-    const GLchar *fragment_code = R"FRAG(
-        #version 330 core
+        glGenFramebuffers(1, &framebuffer->handle);
+        glGenTextures(2, framebuffer->attachments);
 
-        in vec2 frag_uv;
+        // Setup colour attachment
+        //
+        glBindTexture(GL_TEXTURE_2D, framebuffer->attachments[0]);
 
-        out vec4 final_colour;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
 
-        uniform sampler2D mask;
-        uniform sampler2D masked;
-
-        uniform int reverse = 1;
-
-        void main() {
-            final_colour = texture(masked, frag_uv);
-
-            float maskv;
-            if (reverse != 0) {
-                maskv = 1.0 - texture(mask, frag_uv).a; //step(0.5, texture(mask, frag_uv).a);
-                final_colour.a *= maskv;
-            }
-            else {
-                maskv = step(0.5, texture(mask, frag_uv).r);
-            }
-
-            final_colour.a *= maskv;
+        GLenum format, internal;
+        if (target == RenderTarget_Mask0 ||
+            target == RenderTarget_Mask1)
+        {
+            internal = gl->texture_format; //GL_R8;
+            format   = GL_RGBA; //GL_RED;
         }
-    )FRAG";
+        else {
+            internal = gl->texture_format;
+            format   = GL_RGBA;
+        }
 
-    result = OpenGLCompileProgram(&gl->mask_program, vertex_code, fragment_code);
+        glTexImage2D(GL_TEXTURE_2D, 0, internal, screen_dim.w, screen_dim.h, 0, format, GL_UNSIGNED_BYTE, 0);
 
-    if (result) {
-        gl->mask_texture_unit   = glGetUniformLocation(gl->mask_program, "mask");
-        gl->masked_texture_unit = glGetUniformLocation(gl->mask_program, "masked");
-        gl->mask_reverse        = glGetUniformLocation(gl->mask_program, "reverse");
+        // Setup depth attachment
+        //
+        glBindTexture(GL_TEXTURE_2D, framebuffer->attachments[1]);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_REPEAT);
+
+        internal = GL_DEPTH24_STENCIL8;
+        format   = GL_DEPTH_STENCIL;
+
+        glTexImage2D(GL_TEXTURE_2D, 0, internal, screen_dim.w, screen_dim.h, 0, format, GL_UNSIGNED_INT_24_8, 0);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->handle);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer->attachments[0], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,  GL_TEXTURE_2D, framebuffer->attachments[1], 0);
+
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) { return result; }
     }
 
+    result = true;
     return result;
 }
 
@@ -418,6 +336,13 @@ function Renderer_Buffer *OpenGLBeginFrame(OpenGL_Context *gl, v2u window_dim, r
     result->num_immediate_indices = 0;
 
     Renderer_Setup *setup = &result->setup;
+
+    if (setup->window_dim.x != window_dim.x ||
+        setup->window_dim.y != window_dim.y)
+    {
+        OpenGLBuildFramebuffers(gl, window_dim);
+    }
+
     setup->window_dim    = window_dim;
     setup->render_region = render_region;
     setup->vsync_enabled = true; // @Hardcoded: Allow this to be modified
@@ -452,10 +377,19 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl) {
             case RenderCommand_Render_Command_Clear: {
                 Render_Command_Clear *clear = cast(Render_Command_Clear *) (buffer->buffer_base + offset);
 
+                Render_Target target = cast(Render_Target) clear->target;
+                OpenGL_Framebuffer *fb = OpenGLGetFramebuffer(gl, target);
+
+                if (fb) {
+                    glBindFramebuffer(GL_FRAMEBUFFER, fb->handle);
+                }
+
                 glClearColor(clear->colour.r, clear->colour.g, clear->colour.b, clear->colour.a);
                 glClearDepth(clear->depth);
 
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
                 offset += sizeof(Render_Command_Clear);
             }
@@ -470,42 +404,20 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl) {
             case RenderCommand_Render_Command_Quad_Batch: {
                 Render_Command_Quad_Batch *quad_batch = cast(Render_Command_Quad_Batch *) (buffer->buffer_base + offset);
 
-                GLuint program;
-                GLint  tx_loc;
+                OpenGL_Quad_Program *program = &gl->program;
 
-                if (quad_batch->is_circle) {
-                    program = gl->circle_program;
-                    tx_loc  = gl->circle_tx;
+                glUseProgram(program->handle);
 
-                    glUniform1f(gl->circle_fade, 0.1f);
-                }
-                else {
-                    program = gl->program;
-                    tx_loc  = gl->program_transform_loc;
-                }
+                OpenGL_Framebuffer *target = OpenGLGetFramebuffer(gl, cast(Render_Target) quad_batch->target);
+                OpenGL_Framebuffer *mask   = OpenGLGetFramebuffer(gl, cast(Render_Target) quad_batch->mask);
 
-                glUseProgram(program);
+                GLint target_framebuffer = 0;
 
-                glActiveTexture(GL_TEXTURE0);
+                // Set the framebuffer we are drawing to
+                //
+                if (target) { target_framebuffer = target->handle; }
 
-                glBindVertexArray(gl->immediate_vao);
-                glBindBuffer(GL_ARRAY_BUFFER, gl->immediate_vbo);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->immediate_ebo);
-
-                GLuint texture_handle = OpenGLGetTextureHandle(gl, quad_batch->texture);
-                glBindTexture(GL_TEXTURE_2D, texture_handle);
-
-                glUniformMatrix4fv(tx_loc, 1, GL_TRUE, current_tx->e);
-                glDrawElementsBaseVertex(GL_TRIANGLES, quad_batch->index_count, GL_UNSIGNED_SHORT, (void *) (quad_batch->index_offset * sizeof(u16)), quad_batch->vertex_offset);
-
-                offset += sizeof(Render_Command_Quad_Batch);
-            }
-            break;
-            case RenderCommand_Render_Command_Set_Target: {
-                Render_Command_Set_Target *target = cast(Render_Command_Set_Target *) (buffer->buffer_base + offset);
-                GLuint fb = OpenGLGetFramebuffer(gl, cast(Render_Target) target->target);
-
-                glBindFramebuffer(GL_FRAMEBUFFER, fb);
+                glBindFramebuffer(GL_FRAMEBUFFER, target_framebuffer);
 
                 rect2 render_region = buffer->setup.render_region;
 
@@ -519,16 +431,46 @@ function void OpenGLSubmitFrame(OpenGL_Context *gl) {
 
                 glViewport(viewport_pos.x, viewport_pos.y, viewport_dim.w, viewport_dim.h);
 
-                offset += sizeof(Render_Command_Set_Target);
-            }
-            break;
-            case RenderCommand_Render_Command_Resolve_Masks: {
-                Render_Command_Resolve_Masks *mask = cast(Render_Command_Resolve_Masks *) (buffer->buffer_base + offset);
+                // Set the mask texture if we are using one
+                //
+                glActiveTexture(GL_TEXTURE1);
 
-                OpenGLResolveMasks(gl, mask->reverse);
-                offset += sizeof(Render_Command_Resolve_Masks);
+                if (mask) {
+                    glBindTexture(GL_TEXTURE_2D, mask->attachments[0]);
+
+                    glUniform1i(program->use_mask, true);
+                    glUniform1i(program->reverse_mask, quad_batch->reverse_mask);
+                    glUniform1i(program->mask, 1);
+                }
+                else {
+                    glBindTexture(GL_TEXTURE_2D, 0);
+
+                    glUniform1i(program->use_mask, false);
+                    glUniform1i(program->reverse_mask, false); // @Todo: add inversion
+                    glUniform1i(program->mask, 0);
+                }
+
+                glActiveTexture(GL_TEXTURE0);
+
+                GLuint texture_handle = OpenGLGetTextureHandle(gl, quad_batch->texture);
+                glBindTexture(GL_TEXTURE_2D, texture_handle);
+
+                glUniform1i(program->image, 0);
+
+                glUniform1i(program->is_circle,   quad_batch->is_circle);
+                glUniform1f(program->circle_fade, quad_batch->is_circle ? quad_batch->circle_fade : 0);
+
+                v2 window_dim;
+                window_dim.x = cast(f32) buffer->setup.window_dim.w;
+                window_dim.y = cast(f32) buffer->setup.window_dim.h;
+
+                glUniform2f(program->screen_dim, window_dim.x, window_dim.h);
+
+                glUniformMatrix4fv(program->transform, 1, GL_TRUE, current_tx->e);
+                glDrawElementsBaseVertex(GL_TRIANGLES, quad_batch->index_count, GL_UNSIGNED_SHORT, (void *) (quad_batch->index_offset * sizeof(u16)), quad_batch->vertex_offset);
+
+                offset += sizeof(Render_Command_Quad_Batch);
             }
-            break;
         }
     }
 }
@@ -570,17 +512,14 @@ function void OpenGLTransferTextures(OpenGL_Context *gl, Texture_Transfer_Queue 
     texture_queue->transfer_used  = 0;
 }
 
-function GLuint OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target) {
-    GLuint result;
+function OpenGL_Framebuffer *OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target) {
+    OpenGL_Framebuffer *result;
+
     switch (target) {
-        case RenderTarget_Mask: {
-            result = gl->mask_fb.handle;
-        }
-        break;
-        case RenderTarget_Masked: {
-            result = gl->masked_fb.handle;
-        }
-        break;
+        case RenderTarget_Mask0:      { result = &gl->framebuffers[0]; } break;
+        case RenderTarget_Mask1:      { result = &gl->framebuffers[1]; } break;
+        case RenderTarget_Offscreen0: { result = &gl->framebuffers[2]; } break;
+        case RenderTarget_Offscreen1: { result = &gl->framebuffers[3]; } break;
 
         case RenderTarget_Default:
         default: {
@@ -590,28 +529,4 @@ function GLuint OpenGLGetFramebuffer(OpenGL_Context *gl, Render_Target target) {
     }
 
     return result;
-}
-
-function void OpenGLResolveMasks(OpenGL_Context *gl, b32 reverse) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDepthMask(GL_FALSE);
-
-    glUseProgram(gl->mask_program);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gl->mask_fb.texture);
-    glUniform1i(gl->mask_texture_unit, 0);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gl->masked_fb.texture);
-    glUniform1i(gl->masked_texture_unit, 1);
-
-    glUniform1i(gl->mask_reverse, reverse ? 0 : 1);
-
-    glBindVertexArray(gl->fullscreen_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, gl->fullscreen_quad);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glDepthMask(GL_TRUE);
 }

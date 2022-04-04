@@ -20,8 +20,12 @@ typedef RENDERER_SUBMIT_FRAME(Renderer_Submit_Frame);
 
 enum Render_Target {
     RenderTarget_Default = 0,
-    RenderTarget_Masked,
-    RenderTarget_Mask
+
+    RenderTarget_Mask0,
+    RenderTarget_Mask1,
+
+    RenderTarget_Offscreen0,
+    RenderTarget_Offscreen1
 };
 
 // Texture transfer
@@ -99,10 +103,12 @@ enum Render_Command_Type {
     RenderCommand_Render_Command_Camera_Transform,
     RenderCommand_Render_Command_Quad_Batch,
     RenderCommand_Render_Command_Set_Target,
-    RenderCommand_Render_Command_Resolve_Masks
+    // RenderCommand_Render_Command_Resolve_Masks
 };
 
 struct Render_Command_Clear {
+    u32 target;
+
     v4 colour;
     f32 depth;
 };
@@ -114,6 +120,10 @@ struct Render_Command_Camera_Transform {
 struct Render_Command_Quad_Batch {
     Texture_Handle texture;
 
+    u32 target;
+    u32 mask;
+    b32 reverse_mask;
+
     b32 is_circle;
     f32 circle_fade;
 
@@ -124,13 +134,11 @@ struct Render_Command_Quad_Batch {
     u32 index_count;
 };
 
-struct Render_Command_Set_Target {
-    u32 target;
-};
-
-struct Render_Command_Resolve_Masks {
+#if 0
+struct Render_Command_Mask {
     b32 reverse;
 };
+#endif
 
 struct Renderer_Setup {
     v2u   window_dim;

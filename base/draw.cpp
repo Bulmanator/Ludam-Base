@@ -68,23 +68,25 @@ function void SetCameraTransform(Draw_Batch *batch, u32 flags, v3 x, v3 y, v3 z,
 function void DrawClear(Draw_Batch *batch, v4 colour, f32 depth) {
     Render_Command_Clear *clear = RenderCommand(batch, Render_Command_Clear);
     if (clear) {
+        clear->target = batch->target;
         clear->colour = colour;
         clear->depth  = depth;
     }
 }
 
 function void SetRenderTarget(Draw_Batch *batch, Render_Target target) {
-    Render_Command_Set_Target *rt = RenderCommand(batch, Render_Command_Set_Target);
-    if (rt) {
-        rt->target = target;
+    if (batch->target != target) {
+        batch->target = target;
         batch->quad_batch = 0;
     }
 }
 
-function void ResolveMasks(Draw_Batch *batch, b32 reverse) {
-    Render_Command_Resolve_Masks *resolve = RenderCommand(batch, Render_Command_Resolve_Masks);
-    if (resolve) {
-        resolve->reverse = reverse;
+function void SetMaskTarget(Draw_Batch *batch, Render_Target target, b32 reverse) {
+    if (batch->mask != target) { // @Todo: reverse should probably be checked as well
+        batch->mask = target;
+        batch->reverse_mask = reverse;
+
+        batch->quad_batch = 0;
     }
 }
 
@@ -121,7 +123,7 @@ function rect3 GetCameraFrustum(Draw_Transform *tx) {
     return result;
 }
 
-function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count, b32 is_circle) {
+function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Handle texture, u32 quad_count, b32 is_circle, f32 fade = 0.5) {
     Render_Command_Quad_Batch *result = batch->quad_batch;
 
     Renderer_Buffer *buffer = batch->buffer;
@@ -139,10 +141,24 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Han
         return result;
     }
 
-    if (!result || ((result->vertex_count + 3) > U16_MAX) || (result->texture.value != texture.value) || (result->is_circle != is_circle)) {
+    b32 new_batch_required =
+        !result ||
+        ((result->vertex_count + 3) > U16_MAX) ||
+        (result->texture.value != texture.value) ||
+        (result->is_circle != is_circle);
+
+    if (is_circle) {
+        new_batch_required = new_batch_required || (result->circle_fade != fade);
+    }
+
+    if (new_batch_required) {
         result = RenderCommand(batch, Render_Command_Quad_Batch);
 
         if (result) {
+            result->target        = batch->target;
+            result->mask          = batch->mask;
+            result->reverse_mask  = batch->reverse_mask;
+
             result->vertex_offset = buffer->num_immediate_vertices;
             result->vertex_count  = 0;
 
@@ -150,6 +166,8 @@ function Render_Command_Quad_Batch *DrawQuadBatch(Draw_Batch *batch, Texture_Han
             result->index_count   = 0;
 
             result->is_circle     = is_circle;
+            result->circle_fade   = fade;
+
             result->texture       = texture;
 
             batch->quad_batch = result;
@@ -191,6 +209,10 @@ function void DrawQuad(Draw_Batch *batch, Image_Handle image, vert3 vt0, vert3 v
 
         quad_batch->vertex_count += 4;
         quad_batch->index_count  += 6;
+    }
+    else {
+        int *x = 0;
+        *x = 0;
     }
 }
 

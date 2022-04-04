@@ -269,6 +269,8 @@ function b32 WGLInitialise(OpenGL_Context *gl, HINSTANCE instance, HWND window) 
     WGL_LOAD_FUNCTION(glActiveTexture);
     WGL_LOAD_FUNCTION(glUniform1i);
     WGL_LOAD_FUNCTION(glUniform1f);
+    WGL_LOAD_FUNCTION(glUniform2f);
+    WGL_LOAD_FUNCTION(glDeleteFramebuffers);
 
     WGL_LOAD_FUNCTION(glMapBuffer);
 
