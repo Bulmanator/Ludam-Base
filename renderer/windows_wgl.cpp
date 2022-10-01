@@ -315,7 +315,7 @@ function RENDERER_SHUTDOWN(WindowsOpenGLShutdown) {
 extern "C" __declspec(dllexport) RENDERER_INITIALISE(WindowsOpenGLInitialise) {
     Renderer_Context *result = 0;
 
-    OpenGL_Context *gl = AllocInline(params->platform_alloc, Megabytes(512), OpenGL_Context, arena);
+    OpenGL_Context *gl = AllocInline(params->platform_alloc, Gigabytes(2), OpenGL_Context, arena);
     if (!gl) { return result; }
 
     result             = &gl->renderer;

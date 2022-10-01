@@ -1,11 +1,11 @@
 #if !defined(BASE_MEMORY_H_)
 #define BASE_MEMORY_H_
 
-#define Bytes(x)     ((x) <<  0)
-#define Kilobytes(x) ((x) << 10)
-#define Megabytes(x) ((x) << 20)
-#define Gigabytes(x) ((x) << 30)
-#define Terabytes(x) ((x) << 40)
+#define Bytes(x)     (((uptr) (x)) <<  0)
+#define Kilobytes(x) (((uptr) (x)) << 10)
+#define Megabytes(x) (((uptr) (x)) << 20)
+#define Gigabytes(x) (((uptr) (x)) << 30)
+#define Terabytes(x) (((uptr) (x)) << 40)
 
 #define MEMORY_ALLOCATOR_RESERVE(name) void *name(void *context, uptr size, u32 flags)
 #define MEMORY_ALLOCATOR_MODIFY(name)  void  name(void *context, void *base, uptr size)
