@@ -1140,7 +1140,7 @@ function m4x4_inv CameraTransform(v3 x, v3 y, v3 z, v3 p) {
                (txp.x * ix.y) + (txp.y * iy.y) + (txp.z * iz.y),
                (txp.x * ix.z) + (txp.y * iy.z) + (txp.z * iz.z));
 
-    result.inverse = Columns3x3(x, y, z);
+    result.inverse = Columns3x3(ix, iy, iz);
     result.inverse = Translate(result.inverse, -ip);
 
     return result;

@@ -322,6 +322,23 @@ function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle, v
     }
 }
 
+function void DrawQuadOutline(Draw_Batch *batch, v3 centre, v2 dim, f32 angle, v4 colour, f32 thickness) {
+    v2 half_dim = 0.5f * dim;
+    v2 rot      = Arm2(angle);
+
+    v2 p[4];
+
+    p[0] = Rotate(-half_dim, rot) + centre.xy;
+    p[1] = Rotate(V2(-half_dim.x, half_dim.y), rot) + centre.xy;
+    p[2] = Rotate(half_dim, rot) + centre.xy;
+    p[3] = Rotate(V2(half_dim.x, -half_dim.y), rot) + centre.xy;
+
+    for (u32 it = 0; it < 4; ++it) {
+        v2 extra = thickness * Noz(p[it] - p[(it + 1) % 4]);
+        DrawLine(batch, p[it], p[(it + 1) % 4] - extra, centre.z, colour, colour, thickness);
+    }
+}
+
 function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour, v4 end_colour, f32 thickness) {
     v2 perp = Perp(Noz(end - start));
 
@@ -349,6 +366,33 @@ function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour, v4 
     DrawQuad(batch, { 0 }, vt[0], vt[1], vt[2], vt[3]);
 }
 
+function void DrawLine(Draw_Batch *batch, v2 start, v2 end, f32 z_offset, v4 start_colour, v4 end_colour, f32 thickness) {
+    v2 perp = Perp(Noz(end - start));
+
+    u32 ustart_colour = ABGRPack(start_colour);
+    u32 uend_colour   = ABGRPack(end_colour);
+
+    vert3 vt[4];
+
+    vt[0].p  = V3(start, z_offset);
+    vt[0].uv = V2(0, 0);
+    vt[0].c  = ustart_colour;
+
+    vt[1].p  = V3(start + (thickness * perp), z_offset);
+    vt[1].uv = V2(1, 0);
+    vt[1].c  = ustart_colour;
+
+    vt[2].p  = V3(end + (thickness * perp), z_offset);
+    vt[2].uv = V2(1, 1);
+    vt[2].c  = uend_colour;
+
+    vt[3].p  = V3(end, z_offset);
+    vt[3].uv = V2(0, 1);
+    vt[3].c  = uend_colour;
+
+    DrawQuad(batch, { 0 }, vt[0], vt[1], vt[2], vt[3]);
+}
+
 // Animation functions
 //
 function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, f32 time_per_frame) {
@@ -359,6 +403,20 @@ function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 ro
 
     animation->rows = rows;
     animation->cols = cols;
+    animation->total_frames = rows * cols;
+
+    animation->current_frame = 0;
+}
+
+function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, u32 total_frames, f32 time_per_frame) {
+    animation->image = image;
+
+    animation->time  = 0;
+    animation->time_per_frame = time_per_frame;
+
+    animation->rows = rows;
+    animation->cols = cols;
+    animation->total_frames = total_frames;
 
     animation->current_frame = 0;
 }
@@ -392,11 +450,11 @@ function void DrawAnimation(Draw_Batch *batch, Sprite_Animation *animation, v3 c
 
     u32 ucolour = ABGRPack(colour);
 
-    u32 total_frames = animation->rows * animation->cols;
+    u32 total_frames = animation->total_frames;
     u32 frame = animation->current_frame % total_frames;
 
     u32 row = cast(u32) ((cast(f32) frame) / cast(f32) animation->cols);
-    u32 col = animation->current_frame % animation->cols;
+    u32 col = frame % animation->cols;
 
     v2 uv_dim = V2(1.0f / cast(f32) animation->cols, 1.0f / cast(f32) animation->rows);
     v2 uv_min = uv_dim * V2(col, row);

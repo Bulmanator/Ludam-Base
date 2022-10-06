@@ -35,6 +35,7 @@ struct Sprite_Animation {
 
     u32 rows;
     u32 cols;
+    u32 total_frames;
 
     u32 current_frame;
 };
@@ -95,14 +96,19 @@ function void DrawCircle(Draw_Batch *batch, Image_Handle image, v2 centre, f32 r
 // Quad outlines
 //
 function void DrawQuadOutline(Draw_Batch *batch, v2 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
+function void DrawQuadOutline(Draw_Batch *batch, v3 centre, v2 dim, f32 angle = 0, v4 colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
 
 // Line segments
 //
+// @Todo: We really just want 3d lines that can start and end at any 3d position
+//
 function void DrawLine(Draw_Batch *batch, v2 start, v2 end, v4 start_colour = V4(1, 1, 1, 1), v4 end_colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
+function void DrawLine(Draw_Batch *batch, v2 start, v2 end, f32 z_offset, v4 start_colour = V4(1, 1, 1, 1), v4 end_colour = V4(1, 1, 1, 1), f32 thickness = 0.05f);
 
 // Animation functions
 //
 function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, f32 time_per_frame = 0.05f);
+function void Initialise(Sprite_Animation *animation, Image_Handle image, u32 rows, u32 cols, u32 total_frames, f32 time_per_frame);
 
 function void UpdateAnimation(Sprite_Animation *animation, f32 dt);
 
